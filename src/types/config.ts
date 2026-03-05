@@ -49,6 +49,15 @@ export interface AgentConfig {
   readonly max_retry_backoff_ms: number;
   /** Per-state concurrency overrides. State keys are normalized (trimmed + lowercased). */
   readonly max_concurrent_agents_by_state: ReadonlyMap<string, number>;
+  /** Which LLM backend to use. Default: "claude" */
+  readonly backend: "claude" | "grok";
+}
+
+export interface GrokConfig {
+  /** xAI API key. May be a $VAR reference. Default: $XAI_API_KEY */
+  readonly api_key: string;
+  /** Grok model name. Default: "grok-2-1212" */
+  readonly model: string;
 }
 
 export interface CodexConfig {
@@ -74,6 +83,7 @@ export interface ServiceConfig {
   readonly hooks: HooksConfig;
   readonly agent: AgentConfig;
   readonly codex: CodexConfig;
+  readonly grok: GrokConfig;
   readonly server: ServerConfig;
 }
 

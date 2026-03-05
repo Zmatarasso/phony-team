@@ -8,8 +8,12 @@ import type {
   HooksConfig,
   AgentConfig,
   CodexConfig,
+  GrokConfig,
   ServerConfig,
 } from "../types/config.js";
+
+const DEFAULT_AGENT_BACKEND = "claude" as const;
+const DEFAULT_GROK_MODEL = "grok-2-1212";
 
 // --- Defaults ---
 
@@ -170,6 +174,7 @@ export function buildConfig(raw: Record<string, unknown>): ServiceConfig {
   const hooksRaw = getObject(raw, "hooks");
   const agentRaw = getObject(raw, "agent");
   const codexRaw = getObject(raw, "codex");
+  const grokRaw = getObject(raw, "grok");
   const serverRaw = getObject(raw, "server");
 
   // tracker
@@ -208,6 +213,10 @@ export function buildConfig(raw: Record<string, unknown>): ServiceConfig {
   };
 
   // agent
+  const rawBackend = getString(agentRaw, "backend");
+  const backend: "claude" | "grok" =
+    rawBackend === "grok" ? "grok" : DEFAULT_AGENT_BACKEND;
+
   const agent: AgentConfig = {
     max_concurrent_agents: coercePositiveInt(
       agentRaw["max_concurrent_agents"],
@@ -221,6 +230,7 @@ export function buildConfig(raw: Record<string, unknown>): ServiceConfig {
     max_concurrent_agents_by_state: parsePerStateConcurrency(
       agentRaw["max_concurrent_agents_by_state"],
     ),
+    backend,
   };
 
   // codex (agent subprocess settings — kept for spec conformance)
@@ -241,6 +251,13 @@ export function buildConfig(raw: Record<string, unknown>): ServiceConfig {
     ),
   };
 
+  // grok
+  const rawGrokApiKey = getString(grokRaw, "api_key") ?? "$XAI_API_KEY";
+  const grok: GrokConfig = {
+    api_key: resolveEnvVar(rawGrokApiKey),
+    model: getString(grokRaw, "model") ?? DEFAULT_GROK_MODEL,
+  };
+
   // server (optional extension)
   const rawPort = serverRaw["port"];
   let serverPort: number | undefined;
@@ -252,5 +269,5 @@ export function buildConfig(raw: Record<string, unknown>): ServiceConfig {
   }
   const server: ServerConfig = { port: serverPort };
 
-  return { tracker, polling, workspace, hooks, agent, codex, server };
+  return { tracker, polling, workspace, hooks, agent, codex, grok, server };
 }

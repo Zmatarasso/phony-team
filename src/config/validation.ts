@@ -35,5 +35,11 @@ export function validateDispatchConfig(config: ServiceConfig): ValidationResult 
     errors.push("codex.command must be a non-empty string");
   }
 
+  if (config.agent.backend === "grok" && !config.grok.api_key) {
+    errors.push(
+      "grok.api_key is missing or empty (set XAI_API_KEY or provide a value in WORKFLOW.md)",
+    );
+  }
+
   return { ok: errors.length === 0, errors };
 }

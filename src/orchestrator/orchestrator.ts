@@ -7,14 +7,17 @@ import { JiraAdapter } from "../tracker/jiraAdapter.js";
 import { JiraClient } from "../tracker/jiraClient.js";
 import { WorkspaceManager, getWorkspacePath } from "../workspace/workspaceManager.js";
 import { AgentRunner } from "../agent/claudeRunner.js";
+import { GrokRunner } from "../agent/grokRunner.js";
 import { buildPrompt } from "../agent/promptBuilder.js";
 
 export interface OrchestratorOptions {
   readonly config: ServiceConfig;
   readonly workflow: WorkflowDefinition;
   readonly logger: Logger;
-  /** Anthropic API key for agent sessions */
+  /** Anthropic API key for Claude backend sessions */
   readonly anthropicApiKey: string;
+  /** xAI API key for Grok backend sessions (required when agent.backend === "grok") */
+  readonly xaiApiKey?: string;
   /** Optional overrides for testing */
   readonly _adapter?: JiraAdapter;
   readonly _workspaceManager?: WorkspaceManager;
@@ -369,19 +372,24 @@ export class Orchestrator {
     onEvent: AgentEventCallback,
     signal: AbortSignal,
   ): { run(): Promise<void> } {
-    const { config, logger, anthropicApiKey } = this.options;
-    return new AgentRunner({
+    const { config, logger, anthropicApiKey, xaiApiKey } = this.options;
+    const childLogger = logger.child({ issue_id: issue.id, issue_identifier: issue.identifier });
+    const runnerOptions = {
       config,
-      apiKey: anthropicApiKey,
+      apiKey: config.agent.backend === "grok" ? (xaiApiKey ?? config.grok.api_key) : anthropicApiKey,
       workspacePath,
       issue,
       systemPrompt,
       attempt,
       onEvent,
-      logger: logger.child({ issue_id: issue.id, issue_identifier: issue.identifier }),
+      logger: childLogger,
       signal,
       jiraClient: this.jiraClient,
-    });
+    };
+    if (config.agent.backend === "grok") {
+      return new GrokRunner(runnerOptions);
+    }
+    return new AgentRunner(runnerOptions);
   }
 
   private async runAgentAttempt(

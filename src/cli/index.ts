@@ -72,10 +72,12 @@ async function main(): Promise<void> {
   }
 
   const anthropicApiKey = process.env["ANTHROPIC_API_KEY"] ?? "";
-  if (!anthropicApiKey) {
+  if (config.agent.backend !== "grok" && !anthropicApiKey) {
     process.stderr.write("Error: ANTHROPIC_API_KEY environment variable is required\n");
     process.exit(1);
   }
+
+  const xaiApiKey = process.env["XAI_API_KEY"] ?? config.grok.api_key;
 
   // 2. Initialize logger
   const logFile = process.env["SYMPHONY_LOG_FILE"] ?? "./symphony.log";
@@ -101,6 +103,7 @@ async function main(): Promise<void> {
     workflow,
     logger,
     anthropicApiKey,
+    xaiApiKey,
   });
 
   await orchestrator.start();
