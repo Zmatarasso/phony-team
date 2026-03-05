@@ -108,4 +108,5 @@ export interface OrchestratorRuntimeState {
   completed: Set<string>;
   codex_totals: CodexTotals;
   codex_rate_limits: unknown | null;
+  jira_api_calls: number;
 }

@@ -60,6 +60,7 @@ function buildStateResponse(state: Readonly<OrchestratorRuntimeState>): Record<s
       seconds_running: Math.round(state.codex_totals.seconds_running),
     },
     rate_limits: state.codex_rate_limits,
+    jira_api_calls: state.jira_api_calls,
   };
 }
 
@@ -126,6 +127,7 @@ function renderDashboard(state: Readonly<OrchestratorRuntimeState>): string {
     <span class="stat"><span class="stat-value">${retrying.length}</span> retrying</span>
     <span class="stat"><span class="stat-value">${totals.input_tokens + totals.output_tokens}</span> total tokens</span>
     <span class="stat"><span class="stat-value">${Math.round(totals.seconds_running)}s</span> agent time</span>
+    <span class="stat"><span class="stat-value">${state.jira_api_calls}</span> Jira API calls</span>
   </div>
 
   <h2>Running Sessions</h2>

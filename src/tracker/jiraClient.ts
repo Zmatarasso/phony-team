@@ -4,6 +4,7 @@ export interface JiraClientConfig {
   readonly baseUrl: string;
   readonly email: string;
   readonly apiToken: string;
+  readonly onRequest?: (method: string, path: string) => void;
 }
 
 const NETWORK_TIMEOUT_MS = 30_000;
@@ -11,10 +12,12 @@ const NETWORK_TIMEOUT_MS = 30_000;
 export class JiraClient {
   private readonly authHeader: string;
   private readonly baseUrl: string;
+  private readonly onRequest: ((method: string, path: string) => void) | undefined;
 
   constructor(config: JiraClientConfig) {
     this.baseUrl = config.baseUrl.replace(/\/$/, "");
     this.authHeader = `Basic ${Buffer.from(`${config.email}:${config.apiToken}`).toString("base64")}`;
+    this.onRequest = config.onRequest;
   }
 
   async request<T>(
@@ -22,6 +25,7 @@ export class JiraClient {
     path: string,
     body?: Record<string, unknown>,
   ): Promise<T> {
+    this.onRequest?.(method, path);
     const url = `${this.baseUrl}${path}`;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), NETWORK_TIMEOUT_MS);

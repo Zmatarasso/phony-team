@@ -88,12 +88,17 @@ export class Orchestrator {
       completed: new Set(),
       codex_totals: { input_tokens: 0, output_tokens: 0, total_tokens: 0, seconds_running: 0 },
       codex_rate_limits: null,
+      jira_api_calls: 0,
     };
     this.adapter = options._adapter ?? new JiraAdapter(config.tracker);
     this.jiraClient = new JiraClient({
       baseUrl: config.tracker.base_url,
       email: config.tracker.email,
       apiToken: config.tracker.api_token,
+      onRequest: (method, path) => {
+        this.state.jira_api_calls++;
+        options.logger.info(`Jira API call #${this.state.jira_api_calls}`, { method, path });
+      },
     });
     this.workspaceManager = options._workspaceManager ?? new WorkspaceManager(
       config.workspace,
