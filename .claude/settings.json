@@ -1,0 +1,26 @@
+{
+  "allowedTools": [
+    "Bash(git add*)",
+    "Bash(git commit*)",
+    "Bash(git status*)",
+    "Bash(git log*)",
+    "Bash(git diff*)",
+    "Bash(git branch*)",
+    "Bash(git checkout*)",
+    "Bash(git switch*)",
+    "Bash(git merge*)",
+    "Bash(git fetch*)",
+    "Bash(git push*)",
+    "Bash(git pull*)",
+    "Bash(git stash*)",
+    "Bash(git remote*)",
+    "Bash(git show*)",
+    "Bash(git tag*)",
+    "Bash(git init*)",
+    "Bash(git rebase*)",
+    "Bash(nvm *)",
+    "Bash(source ~/.nvm/nvm.sh*)",
+    "Bash(npm test*)",
+    "Bash(npm run test*)"
+  ]
+}
