@@ -1,0 +1,527 @@
+# HUMANTODO
+
+Tasks that require human action. Once Symphony is running, create these as
+Jira tickets in the PHONY project so agents can pick them up.
+
+---
+
+## Jira Setup (do this first)
+
+Before creating tickets, you need a Jira project configured:
+- Project key: PHONY
+- Issue workflow states: Todo, In Progress, Blocked, In Review, Done, Cancelled
+- Copy .env.example to .env and fill in JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN
+- Fill in ANTHROPIC_API_KEY
+
+---
+
+## Symphony Implementation Tickets
+
+Create each of the following as a Jira ticket in PHONY. Set them all to
+"Todo" initially. Move to "In Progress" one at a time to dispatch to an agent.
+Dependencies are noted — respect them when sequencing.
+
+---
+
+### PHONY-3 — Workflow Loader + Config Layer
+
+**Description:**
+Implement WORKFLOW.md parsing and the typed config layer with defaults,
+$VAR resolution, and path expansion (spec Sections 5.1-5.4, 6.1, 6.3-6.4).
+
+**Proposed Design:**
+- src/config/workflowLoader.ts: read file, split --- front matter, parse YAML,
+  return WorkflowDefinition. Throw typed errors for missing file, invalid YAML,
+  non-map front matter.
+- src/config/configLayer.ts: getConfig(raw) -> ServiceConfig. Apply all
+  defaults, resolve $VAR in api_key and path fields, expand ~, coerce string
+  integers to numbers.
+- src/config/validation.ts: validateDispatchConfig(config) -> ValidationResult.
+  Checks tracker.kind === "jira", api_key/email/api_token presence, project_key
+  present, codex.command non-empty.
+- All defaults from src/types/config.ts must be applied when keys are absent.
+
+**Acceptance Criteria:**
+- Missing file -> MissingWorkflowFileError
+- Invalid YAML -> WorkflowParseError
+- Non-map YAML -> WorkflowFrontMatterNotAMapError
+- $JIRA_API_TOKEN style env var resolution works
+- ~ path expansion works
+- All ServiceConfig defaults applied when keys absent
+- validateDispatchConfig catches missing required fields
+- Jest unit tests covering all error cases and defaults
+
+**Dependencies:** PHONY-1, PHONY-2
+
+---
+
+### PHONY-4 — Dynamic Workflow Watch + Reload
+
+**Description:**
+Watch WORKFLOW.md for changes and re-apply config and prompt template without
+restarting the service (spec Section 6.2).
+
+**Proposed Design:**
+- src/config/workflowWatcher.ts: use chokidar to watch the workflow file path.
+  Debounce change events (200ms). On change: reload workflow, validate, call
+  provided onReload callback with new config. On invalid reload: call onError
+  callback, keep old config — never crash.
+- Export startWatcher(path, onReload, onError): Disposable where Disposable
+  has a stop() method.
+- The orchestrator will call this; watcher just notifies, does not mutate
+  orchestrator state directly.
+
+**Acceptance Criteria:**
+- Valid file change triggers onReload with new WorkflowDefinition
+- Invalid file change triggers onError, does not call onReload
+- Watcher can be stopped cleanly
+- Tested with temp file writes in Jest (use fs.writeFileSync in tests)
+
+**Dependencies:** PHONY-3
+
+---
+
+### PHONY-5 — Jira REST Adapter
+
+**Description:**
+Implement the Jira tracker adapter with all three required operations,
+issue normalization, pagination, and error handling (spec Sections 11.1-11.4,
+adapted for Jira REST API v3 instead of Linear GraphQL).
+
+**Proposed Design:**
+- src/tracker/jiraClient.ts: thin HTTP client around Jira REST API v3 using
+  native fetch. Auth via Basic auth (base64(email:api_token)) in Authorization
+  header. Network timeout: 30000ms.
+- src/tracker/jiraAdapter.ts:
+  - fetchCandidateIssues(): fetch issues in active_states for project_key,
+    paginate with startAt/maxResults (page size 50).
+  - fetchIssuesByStates(states): used for startup terminal cleanup. Return []
+    without API call if states is empty.
+  - fetchIssueStatesByIds(ids): used for reconciliation. Return normalized
+    issues with at minimum id, identifier, state fields.
+- src/tracker/normalize.ts: map Jira issue JSON -> Issue type.
+  - labels: lowercase strings from issue.fields.labels[].name
+  - blocked_by: from issue.fields.issuelinks where type.inward === "is blocked
+    by", map to BlockerRef
+  - priority: integer from issue.fields.priority.id, null if missing/invalid
+  - created_at / updated_at: parse ISO-8601 from fields.created / fields.updated
+  - identifier: issue.key (e.g. PHONY-42)
+  - state: issue.fields.status.name
+  - branch_name: from issue.fields.customfield_* if available, else null
+- Error types: TrackerError with codes jira_api_request, jira_api_status,
+  jira_api_errors, jira_unknown_payload, jira_missing_pagination_cursor
+
+**Acceptance Criteria:**
+- fetchCandidateIssues returns correctly normalized Issue[]
+- Pagination preserves order across pages
+- Labels normalized to lowercase
+- Blockers derived from issuelinks of type "is blocked by"
+- fetchIssuesByStates([]) returns [] without HTTP call
+- All error codes map to TrackerError subclass
+- Unit tests with mocked fetch
+
+**Dependencies:** PHONY-3
+
+---
+
+### PHONY-6 — Workspace Manager + Hooks
+
+**Description:**
+Implement per-issue workspace creation, reuse, path safety invariants, and
+lifecycle hook execution (spec Sections 9.1-9.5).
+
+**Proposed Design:**
+- src/workspace/workspaceManager.ts:
+  - sanitizeIdentifier(id): replace all chars not in [A-Za-z0-9._-] with _
+  - getWorkspacePath(identifier): <workspace.root>/<sanitized_identifier>
+  - ensureWorkspace(identifier): create dir if missing (created_now=true),
+    reuse if existing (created_now=false). Run after_create hook only when
+    created_now=true. Return WorkspaceInfo.
+  - removeWorkspace(identifier): run before_remove hook (best-effort), then
+    rm -rf the directory.
+- src/workspace/hookRunner.ts:
+  - runHook(script, cwd, timeoutMs): spawn via "bash -lc <script>", enforce
+    timeout with AbortController + setTimeout, return { ok, stdout, stderr }.
+  - Log hook start, output (truncated), and any failures.
+- Safety invariants (enforce before any agent launch):
+  - workspace_path must be absolute
+  - workspace_path must start with workspace_root + path.sep
+  - Reject any path that fails this check with WorkspaceError("workspace_path_invalid")
+- Hook failure semantics:
+  - after_create failure: fatal, throw, workspace is considered uncreated
+  - before_run failure: fatal, throw, abort the attempt
+  - after_run failure: log and swallow
+  - before_remove failure: log and swallow, cleanup proceeds
+
+**Acceptance Criteria:**
+- Sanitization replaces all non-[A-Za-z0-9._-] chars with _
+- after_create runs only on new directory creation, not on reuse
+- before_run failure throws and prevents agent launch
+- after_run failure is caught and logged, does not propagate
+- Path traversal (../../etc) rejected by containment check
+- Hook timeout kills the shell process
+- Jest unit tests for all hook failure modes and safety invariants (spec 17.2)
+
+**Dependencies:** PHONY-3, PHONY-7
+
+---
+
+### PHONY-7 — Logging Infrastructure
+
+**Description:**
+Implement structured logging with three sinks: stderr, a complete log file,
+and a grouped summary log file (spec Sections 13.1-13.2).
+
+**Proposed Design:**
+- src/logging/logger.ts: Logger class with methods debug/info/warn/error.
+  Each accepts (message, context?) where context is a record of extra fields.
+  Required context fields: issue_id, issue_identifier, session_id (all optional
+  on the call site, attached via child loggers).
+- createLogger(config): returns root Logger. Logger.child(context) returns a
+  new Logger with merged context on every record.
+- Log record shape: { level, timestamp (ISO), message, ...context }
+- Sink 1 — stderr: formatted as "LEVEL timestamp message key=value key=value"
+- Sink 2 — symphony.log: newline-delimited JSON, one record per line (complete)
+- Sink 3 — symphony-summary.log: human-readable grouped summaries. Group by
+  issue_identifier. Write a summary entry on: session start, each turn
+  completion, session end (success/failure/retry), and errors. Format as:
+  "[TIMESTAMP] [IDENTIFIER] EVENT: message"
+- Log file paths from config (SYMPHONY_LOG_FILE, SYMPHONY_SUMMARY_LOG_FILE env
+  vars, defaulting to ./symphony.log and ./symphony-summary.log)
+- All sink writes wrapped in try/catch — sink failures must not throw
+
+**Acceptance Criteria:**
+- All three sinks receive output for each log call
+- issue_id, issue_identifier, session_id flow through child loggers
+- Sink failure does not propagate to caller
+- Summary log has readable grouped-by-issue format (not raw JSON)
+- Jest unit tests for formatting, context merging, and sink failure resilience
+
+**Dependencies:** PHONY-1
+
+---
+
+### PHONY-8 — Prompt Builder
+
+**Description:**
+Implement strict Liquid template rendering for per-issue prompts using the
+WORKFLOW.md prompt body (spec Sections 5.4, 12.1-12.4).
+
+**Proposed Design:**
+- src/agent/promptBuilder.ts using the liquidjs package.
+- buildPrompt(template, issue, attempt): string
+  - Configure Liquid with strictVariables: true, strictFilters: true
+  - Pass issue object (all fields) and attempt (null | number) as template vars
+  - If template is empty string after trim, return default:
+    "You are working on an issue from Jira."
+  - Template parse error -> throw TemplateParseError
+  - Render error (unknown var/filter) -> throw TemplateRenderError
+- The issue object fields must be accessible as {{ issue.identifier }},
+  {{ issue.title }}, {{ issue.description }}, {{ issue.state }}, etc.
+- attempt is null on first run, an integer on retry/continuation
+
+**Acceptance Criteria:**
+- {{ issue.identifier }} renders correctly
+- {{ attempt }} renders as null or integer
+- Unknown variable throws TemplateRenderError (strict mode)
+- Unknown filter throws TemplateRenderError
+- Empty template body returns default prompt without error
+- Jest unit tests covering all cases from spec 17.1
+
+**Dependencies:** PHONY-3
+
+---
+
+### PHONY-9 — Claude Agent Runner
+
+**Description:**
+Implement the agent runner using the Anthropic SDK, replacing the spec's
+codex app-server stdio protocol with direct Claude API calls via tool use.
+This is the execution core of Symphony (spec Section 10, adapted for Claude).
+
+**Proposed Design:**
+- src/agent/claudeRunner.ts: AgentRunner class
+  - startSession(workspacePath, issue): sets up Anthropic client, tool handlers
+  - runTurn(prompt, onEvent): calls anthropic.messages.create with streaming
+    and tool_use, processes tool call loop, emits AgentEvent to onEvent callback
+  - stopSession(): no-op for API-based runner (no subprocess to kill)
+  - Model: claude-sonnet-4-6 (or latest available; make configurable)
+- Tool definitions (all run with cwd = workspace path):
+  - bash_execute(command): spawn via child_process.spawn("bash", ["-lc", command]),
+    capture stdout+stderr, enforce timeout (default 60s per command).
+    REJECT commands matching: /git\s+push\b.*\bmain\b/, /git\s+branch\s+-[Dd]\s+main/,
+    /git\s+reset\b.*\bmain/, /git\s+checkout\s+-[Bb]\s+main/ when target is main.
+    Return { stdout, stderr, exit_code }.
+  - read_file(path): resolve path relative to workspace, read and return contents.
+  - write_file(path, content): resolve path relative to workspace, write contents.
+  - list_directory(path): resolve path relative to workspace, return entries.
+- Event emission: map Anthropic streaming events to AgentEvent types:
+  - message_start -> session_started
+  - tool_use block -> approval_auto_approved (log tool name)
+  - message_delta with stop_reason=end_turn -> turn_completed with usage
+  - error -> turn_failed
+  - tool result with is_error -> unsupported_tool_call or turn_ended_with_error
+- Token tracking: extract usage from message_delta events, emit
+  token_usage_updated events; track input/output/total.
+- Timeouts: turn_timeout_ms enforced on the full runTurn call via AbortController.
+- Trust posture: auto-approve all tool calls (no confirmation prompt).
+  User-input-required -> not applicable for API mode; if agent produces no
+  tool_use and no final response, treat as turn_input_required hard fail.
+- Main branch protection: bash_execute rejects destructive-to-main patterns
+  with a structured tool error response (does not crash the session).
+
+**Acceptance Criteria:**
+- Agent can read/write files and run bash within workspace directory
+- Relative paths resolved against workspace root, not process cwd
+- Token counts emitted with each turn_completed event
+- turn_timeout_ms kills the in-flight API call and returns turn_timeout error
+- Main-branch-destructive bash commands rejected with tool error, session continues
+- Tool call loop continues until stop_reason=end_turn or error
+- Jest unit tests with mocked Anthropic client covering happy path, timeout,
+  tool rejection, and error mapping
+
+**Dependencies:** PHONY-6, PHONY-7, PHONY-8
+
+---
+
+### PHONY-10 — Jira Tool Extension for Agent
+
+**Description:**
+Expose the Jira REST API as an agent tool so the coding agent can transition
+issue states, add comments, and post PR links during its run. Analogous to the
+spec's linear_graphql extension (spec Section 10.5, adapted for Jira REST).
+
+**Proposed Design:**
+- Add jira_api tool to Claude runner tool definitions when tracker.kind === "jira"
+- Input schema:
+  { method: "GET" | "POST" | "PUT", endpoint: string, body?: Record<string, unknown> }
+  where endpoint is a Jira REST API v3 path (e.g. /rest/api/3/issue/PHONY-42/transitions)
+- Validation: endpoint must be non-empty string, method must be GET/POST/PUT
+- Execute: call Jira REST API using Symphony's configured auth (injected, never
+  passed by the agent)
+- Success: { success: true, data: <response body> }
+- Jira API errors (non-2xx): { success: false, error: "<status>", data: <body> }
+- Invalid input / missing auth / transport failure:
+  { success: false, error: "<reason>" }
+- Unsupported method or invalid input: return structured failure, session continues
+- Auth must never appear in logs or tool responses
+
+**Acceptance Criteria:**
+- Tool advertised in session startup
+- Valid GET/POST/PUT calls execute against configured Jira instance
+- Auth token never logged or included in tool response
+- Non-2xx Jira response returns success=false while preserving body
+- Invalid method returns structured failure without crashing session
+- Jest unit tests with mocked Jira client
+
+**Dependencies:** PHONY-5, PHONY-9
+
+---
+
+### PHONY-11 — Orchestrator Core
+
+**Description:**
+Implement the central orchestrator: poll loop, dispatch, concurrency control,
+reconciliation, retry queue, stall detection, and startup cleanup (spec
+Sections 7-8, 16.1-16.6).
+
+**Proposed Design:**
+- src/orchestrator/orchestrator.ts: Orchestrator class owning
+  OrchestratorRuntimeState. All state mutations happen synchronously in the
+  Node.js event loop (no true threads). Use an async operation queue pattern
+  to prevent races between poll ticks and worker exit callbacks.
+- Poll loop: setTimeout-based. Respects dynamic poll_interval_ms changes.
+  Immediate tick on startup (delay=0).
+- Dispatch: shouldDispatch(issue, state) checks all eligibility rules from
+  spec 8.2:
+  - has id, identifier, title, state
+  - state in active_states and not in terminal_states
+  - not in running map
+  - not in claimed set
+  - global slots available: max(max_concurrent_agents - running.size, 0) > 0
+  - per-state slots available (max_concurrent_agents_by_state lookup)
+  - blocker rule: if state normalized === "todo", all blockers must be terminal
+  Sort: priority asc (null last), then created_at asc, then identifier lex.
+- Worker spawn: dispatch_issue() creates a Promise-based worker. Worker runs
+  run_agent_attempt() which calls AgentRunner. Worker promise stored in
+  RunningEntry.worker_promise.
+- Worker exit: on_worker_exit() removes from running, updates codex_totals,
+  schedules continuation retry (1000ms) on normal exit, exponential retry on
+  failure.
+- Retry backoff: delay = min(10000 * 2^(attempt-1), max_retry_backoff_ms)
+  Continuation retry: fixed 1000ms delay, attempt=1.
+- Reconciliation (every tick, before dispatch):
+  Part A: stall detection — for each running issue, if elapsed since
+  last_codex_timestamp (or started_at) > stall_timeout_ms, terminate + retry.
+  Part B: fetch current states for all running issue IDs. Terminal -> terminate
+  + cleanup workspace. Active -> update in-memory snapshot. Neither -> terminate,
+  no cleanup. Fetch failure -> keep running, retry next tick.
+- Startup terminal cleanup: fetch issues in terminal_states, remove their
+  workspaces. Failure -> log warning, continue.
+- Observer pattern: orchestrator.subscribe(listener: StateListener) for HTTP
+  server and logging consumers.
+
+**Acceptance Criteria:**
+- All dispatch eligibility rules from spec 8.2 enforced
+- Sort order: priority asc -> oldest created -> identifier lex
+- Backoff formula: min(10000 * 2^(attempt-1), max_retry_backoff_ms)
+- Continuation retry uses 1000ms fixed delay, attempt=1
+- Stall detection kills worker and queues retry
+- Terminal tracker state -> terminate + workspace cleanup
+- Non-active (not terminal) tracker state -> terminate, no cleanup
+- Reconciliation state-refresh failure keeps workers running
+- Global and per-state concurrency limits enforced
+- Jest unit tests covering all cases from spec 17.4
+
+**Dependencies:** PHONY-4, PHONY-5, PHONY-6, PHONY-7, PHONY-9
+
+---
+
+### PHONY-12 — HTTP Server + Basic Dashboard
+
+**Description:**
+Implement the optional HTTP server with JSON REST API and a basic HTML
+dashboard for observability (spec Section 13.7).
+
+**Proposed Design:**
+- src/server/httpServer.ts using express.
+- startServer(orchestrator, port): Server — bind to 127.0.0.1:<port>.
+- Routes:
+  - GET /api/v1/state: snapshot from orchestrator. Response shape per spec 13.7.2:
+    { generated_at, counts: { running, retrying }, running: [...], retrying: [...],
+      codex_totals: { input_tokens, output_tokens, total_tokens, seconds_running },
+      rate_limits }
+  - GET /api/v1/:identifier: issue-specific debug info. 404 if not in state.
+    Response shape per spec 13.7.2 issue endpoint.
+  - POST /api/v1/refresh: trigger immediate poll tick on orchestrator. 202 response:
+    { queued: true, coalesced: false, requested_at, operations: ["poll","reconcile"] }
+  - GET /: server-rendered HTML dashboard
+  - All undefined routes: 404 JSON. Wrong method on defined route: 405 JSON.
+  - Error envelope: { error: { code: string, message: string } }
+- Dashboard (GET /): server-rendered HTML, no frontend framework, no JS required.
+  Shows: running sessions table (identifier, state, turn_count, tokens, last_event,
+  elapsed), retry queue table, token totals, last refresh. Auto-refreshes every 10s
+  via <meta http-equiv="refresh" content="10">.
+- server.port from WORKFLOW.md config, overridden by CLI --port flag.
+- Server start/stop must not affect orchestrator correctness.
+
+**Acceptance Criteria:**
+- GET /api/v1/state returns correct shape
+- GET /api/v1/:identifier returns 404 for unknown identifier
+- POST /api/v1/refresh returns 202 and triggers orchestrator tick
+- Wrong HTTP method returns 405
+- Dashboard renders valid HTML without JavaScript
+- Server binds to 127.0.0.1 (not 0.0.0.0)
+- Jest unit tests for all API routes using supertest
+
+**Dependencies:** PHONY-11
+
+---
+
+### PHONY-13 — CLI Entry Point
+
+**Description:**
+Implement the CLI binary that ties all components together and handles startup,
+shutdown, and user-facing errors (spec Section 17.7).
+
+**Proposed Design:**
+- src/cli/index.ts as the bin entry point.
+- Arguments:
+  - Optional positional: [workflow-path] (default: ./WORKFLOW.md)
+  - Optional flag: --port <number> (enables HTTP server on that port)
+- Startup sequence:
+  1. Load and validate workflow (error -> stderr + exit 1)
+  2. Initialize logger
+  3. Start workflow watcher
+  4. Run startup terminal workspace cleanup
+  5. Start orchestrator (immediate first tick)
+  6. Start HTTP server if --port or server.port configured
+  7. Log "Symphony started" with config summary
+- Shutdown (SIGTERM / SIGINT):
+  1. Stop accepting new dispatches
+  2. Wait up to 30s for running workers to finish
+  3. Force-stop remaining workers
+  4. Close HTTP server
+  5. Flush log files
+  6. Exit 0
+- Exit codes: 0 for clean shutdown, 1 for startup failure or abnormal exit.
+- Error messages to stderr in plain text (not JSON).
+
+**Acceptance Criteria:**
+- symphony (no args) uses ./WORKFLOW.md
+- symphony path/to/WORKFLOW.md uses explicit path
+- Missing/unreadable workflow file -> error to stderr + exit 1
+- Invalid config (missing required fields) -> error to stderr + exit 1
+- --port 3000 starts HTTP server
+- SIGTERM produces clean shutdown and exit 0
+- All cases from spec 17.7 covered
+- Integration test: spawn CLI subprocess, verify startup, send SIGTERM,
+  verify clean exit
+
+**Dependencies:** PHONY-11, PHONY-12
+
+---
+
+### PHONY-14 — WORKFLOW.md + README + Trust Documentation
+
+**Description:**
+Write the WORKFLOW.md for the phony-team project (the prompt and config that
+defines how agents handle PHONY tickets), plus setup documentation and the
+required trust/safety posture documentation.
+
+**Proposed Design:**
+
+WORKFLOW.md front matter should configure:
+- tracker.kind: jira
+- tracker.base_url: $JIRA_BASE_URL
+- tracker.email: $JIRA_EMAIL
+- tracker.api_token: $JIRA_API_TOKEN
+- tracker.project_key: PHONY
+- tracker.active_states: [In Progress]
+- tracker.terminal_states: [Done, Cancelled, Closed, Duplicate]
+- polling.interval_ms: 30000
+- workspace.root: ~/symphony_workspaces
+- hooks.before_run: git fetch origin && git merge origin/main || true
+- agent.max_concurrent_agents: 3
+- agent.max_turns: 30
+- codex.turn_timeout_ms: 7200000 (2h)
+- codex.stall_timeout_ms: 600000 (10m)
+- server.port: 3000
+
+WORKFLOW.md prompt template should instruct the agent to:
+1. On pickup: git checkout -b {{ issue.identifier }} from main (if branch
+   doesn't already exist). If branch exists, check it out.
+2. Read the full ticket description to understand the plan.
+3. Implement the plan described in the issue.
+4. Run tests. If tests fail and the failure is caused by the spec/plan
+   contradicting the implementation, call jira_api to transition to Blocked
+   and add a comment explaining the conflict, then stop.
+5. If any unforeseen blocker arises, transition to Blocked and comment.
+6. When implementation is complete and tests pass:
+   a. git add -A && git commit
+   b. git fetch origin && git merge origin/main (resolve conflicts)
+   c. git push -u origin {{ issue.identifier }}
+   d. gh pr create --title "{{ issue.identifier }}: {{ issue.title }}" --base main
+   e. Call jira_api to transition issue to "In Review"
+   f. Post PR URL as Jira comment
+
+README.md should cover:
+- Prerequisites (Node 24, npm, Claude API key, Jira account)
+- Setup steps (.env, WORKFLOW.md, npm install, npm run build)
+- How to run Symphony (symphony command)
+- How to write effective ticket descriptions for agents
+
+TRUST.md should document:
+- High-trust posture (auto-approve all tool calls)
+- What agents can do (bash, file ops, git, Jira API via tool)
+- What agents cannot do (merge to main, delete main, direct push to main)
+- Main branch protection implementation (bash_execute rejection patterns)
+- Recommendation to review PRs before merging
+
+**Acceptance Criteria:**
+- WORKFLOW.md parses cleanly with Symphony's config loader (no errors)
+- Prompt template renders without error for a sample issue
+- TRUST.md explicitly states the trust posture per spec 15.1
+- README covers all required env vars and setup steps
+
+**Dependencies:** PHONY-13
