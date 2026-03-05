@@ -73,7 +73,8 @@ git merge origin/main --no-edit || true
 Read the issue description carefully. If additional context is needed, check:
 - Any files mentioned in the description
 - Existing tests for the area you are modifying
-- The HUMANTODO file at the repo root for design notes
+- Comment on the issue with a quick summary of your proposed solution based on the description.
+- Focus on breaking down the task into discrete parts that could be given to other team members if needed. 
 
 ### 3. Implement
 
