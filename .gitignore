@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+*.log
+symphony.log
+symphony-summary.log
+.env
+.env.local
