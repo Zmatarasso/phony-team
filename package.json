@@ -12,6 +12,7 @@
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "dev": "tsx src/cli/index.ts",
+    "phony": "tsx src/cli/index.ts --port 3000",
     "test": "node --experimental-vm-modules node_modules/.bin/jest --passWithNoTests",
     "test:watch": "node --experimental-vm-modules node_modules/.bin/jest --watch",
     "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage",
