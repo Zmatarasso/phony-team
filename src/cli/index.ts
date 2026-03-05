@@ -123,7 +123,7 @@ async function main(): Promise<void> {
   // 7. Log startup summary
   logger.info("Symphony started", {
     workflow: resolvedWorkflowPath,
-    project_key: config.tracker.project_key,
+    space_key: config.tracker.space_key,
     max_concurrent_agents: config.agent.max_concurrent_agents,
     poll_interval_ms: config.polling.interval_ms,
   });

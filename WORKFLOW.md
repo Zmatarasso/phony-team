@@ -4,7 +4,7 @@ tracker:
   base_url: $JIRA_BASE_URL
   email: $JIRA_EMAIL
   api_token: $JIRA_API_TOKEN
-  project_key: PHONY
+  space_key: PHONY
   active_states:
     - In Progress
   terminal_states:

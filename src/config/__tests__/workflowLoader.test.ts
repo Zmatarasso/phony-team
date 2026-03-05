@@ -27,13 +27,13 @@ describe("parseWorkflowContent", () => {
       "---",
       "tracker:",
       "  kind: jira",
-      "  project_key: PHONY",
+      "  space_key: PHONY",
       "---",
       "",
       "You are an agent.",
     ].join("\n");
     const result = parseWorkflowContent(content);
-    expect(result.config).toEqual({ tracker: { kind: "jira", project_key: "PHONY" } });
+    expect(result.config).toEqual({ tracker: { kind: "jira", space_key: "PHONY" } });
     expect(result.prompt_template).toBe("You are an agent.");
   });
 
@@ -117,10 +117,10 @@ describe("loadWorkflow", () => {
     const filePath = path.join(tmpDir, "WORKFLOW.md");
     await writeFile(
       filePath,
-      "---\ntracker:\n  project_key: TEST\n---\nDo the work.",
+      "---\ntracker:\n  space_key: TEST\n---\nDo the work.",
     );
     const result = await loadWorkflow(filePath);
-    expect((result.config["tracker"] as Record<string, unknown>)["project_key"]).toBe("TEST");
+    expect((result.config["tracker"] as Record<string, unknown>)["space_key"]).toBe("TEST");
     expect(result.prompt_template).toBe("Do the work.");
   });
 

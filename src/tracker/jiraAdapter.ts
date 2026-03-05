@@ -44,7 +44,7 @@ export class JiraAdapter {
    */
   async fetchCandidateIssues(): Promise<Issue[]> {
     const stateList = this.config.active_states.map((s) => `"${s}"`).join(", ");
-    const jql = `project = "${this.config.project_key}" AND status in (${stateList}) ORDER BY created ASC`;
+    const jql = `project = "${this.config.space_key}" AND status in (${stateList}) ORDER BY created ASC`;
     return this.fetchAllByJql(jql);
   }
 
@@ -55,7 +55,7 @@ export class JiraAdapter {
   async fetchIssuesByStates(states: readonly string[]): Promise<Issue[]> {
     if (states.length === 0) return [];
     const stateList = states.map((s) => `"${s}"`).join(", ");
-    const jql = `project = "${this.config.project_key}" AND status in (${stateList}) ORDER BY created ASC`;
+    const jql = `project = "${this.config.space_key}" AND status in (${stateList}) ORDER BY created ASC`;
     return this.fetchAllByJql(jql);
   }
 

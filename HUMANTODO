@@ -7,8 +7,8 @@ Jira tickets in the PHONY project so agents can pick them up.
 
 ## Jira Setup (do this first)
 
-Before creating tickets, you need a Jira project configured:
-- Project key: PHONY
+Before creating tickets, you need a Jira space configured:
+- Space key: PHONY
 - Issue workflow states: Todo, In Progress, Blocked, In Review, Done, Cancelled
 - Copy .env.example to .env and fill in JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN
 - Fill in ANTHROPIC_API_KEY
@@ -37,7 +37,7 @@ $VAR resolution, and path expansion (spec Sections 5.1-5.4, 6.1, 6.3-6.4).
   defaults, resolve $VAR in api_key and path fields, expand ~, coerce string
   integers to numbers.
 - src/config/validation.ts: validateDispatchConfig(config) -> ValidationResult.
-  Checks tracker.kind === "jira", api_key/email/api_token presence, project_key
+  Checks tracker.kind === "jira", api_key/email/api_token presence, space_key
   present, codex.command non-empty.
 - All defaults from src/types/config.ts must be applied when keys are absent.
 
@@ -93,7 +93,7 @@ adapted for Jira REST API v3 instead of Linear GraphQL).
   native fetch. Auth via Basic auth (base64(email:api_token)) in Authorization
   header. Network timeout: 30000ms.
 - src/tracker/jiraAdapter.ts:
-  - fetchCandidateIssues(): fetch issues in active_states for project_key,
+  - fetchCandidateIssues(): fetch issues in active_states for space_key,
     paginate with startAt/maxResults (page size 50).
   - fetchIssuesByStates(states): used for startup terminal cleanup. Return []
     without API call if states is empty.
@@ -476,7 +476,7 @@ WORKFLOW.md front matter should configure:
 - tracker.base_url: $JIRA_BASE_URL
 - tracker.email: $JIRA_EMAIL
 - tracker.api_token: $JIRA_API_TOKEN
-- tracker.project_key: PHONY
+- tracker.space_key: PHONY
 - tracker.active_states: [In Progress]
 - tracker.terminal_states: [Done, Cancelled, Closed, Duplicate]
 - polling.interval_ms: 30000

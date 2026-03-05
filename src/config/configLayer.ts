@@ -187,7 +187,7 @@ export function buildConfig(raw: Record<string, unknown>): ServiceConfig {
     base_url: resolveEnvVar(rawBaseUrl),
     email: resolveEnvVar(rawEmail),
     api_token: resolveEnvVar(rawApiToken),
-    project_key: getString(trackerRaw, "project_key") ?? "",
+    space_key: getString(trackerRaw, "space_key") ?? "",
     active_states: parseStates(trackerRaw["active_states"], DEFAULT_ACTIVE_STATES),
     terminal_states: parseStates(trackerRaw["terminal_states"], DEFAULT_TERMINAL_STATES),
   };

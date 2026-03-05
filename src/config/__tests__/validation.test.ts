@@ -8,7 +8,7 @@ function validConfig(): ReturnType<typeof buildConfig> {
       base_url: "https://org.atlassian.net",
       email: "user@example.com",
       api_token: "secret",
-      project_key: "PHONY",
+      space_key: "PHONY",
     },
     codex: { command: "claude" },
   });
@@ -27,7 +27,7 @@ describe("validateDispatchConfig", () => {
         base_url: "https://org.atlassian.net",
         email: "user@example.com",
         api_token: "",
-        project_key: "PHONY",
+        space_key: "PHONY",
       },
     });
     const result = validateDispatchConfig(config);
@@ -41,7 +41,7 @@ describe("validateDispatchConfig", () => {
         base_url: "https://org.atlassian.net",
         email: "",
         api_token: "secret",
-        project_key: "PHONY",
+        space_key: "PHONY",
       },
     });
     const result = validateDispatchConfig(config);
@@ -55,7 +55,7 @@ describe("validateDispatchConfig", () => {
         base_url: "",
         email: "user@example.com",
         api_token: "secret",
-        project_key: "PHONY",
+        space_key: "PHONY",
       },
     });
     const result = validateDispatchConfig(config);
@@ -63,18 +63,18 @@ describe("validateDispatchConfig", () => {
     expect(result.errors.some((e) => e.includes("base_url"))).toBe(true);
   });
 
-  it("fails when project_key is empty", () => {
+  it("fails when space_key is empty", () => {
     const config = buildConfig({
       tracker: {
         base_url: "https://org.atlassian.net",
         email: "user@example.com",
         api_token: "secret",
-        project_key: "",
+        space_key: "",
       },
     });
     const result = validateDispatchConfig(config);
     expect(result.ok).toBe(false);
-    expect(result.errors.some((e) => e.includes("project_key"))).toBe(true);
+    expect(result.errors.some((e) => e.includes("space_key"))).toBe(true);
   });
 
   it("fails when codex.command is whitespace-only", () => {
@@ -83,7 +83,7 @@ describe("validateDispatchConfig", () => {
         base_url: "https://org.atlassian.net",
         email: "user@example.com",
         api_token: "secret",
-        project_key: "PHONY",
+        space_key: "PHONY",
       },
       codex: { command: "   " },
     });
@@ -96,7 +96,7 @@ describe("validateDispatchConfig", () => {
     const config = buildConfig({});
     const result = validateDispatchConfig(config);
     expect(result.ok).toBe(false);
-    // api_token, email, base_url, project_key all missing
+    // api_token, email, base_url, space_key all missing
     expect(result.errors.length).toBeGreaterThanOrEqual(4);
   });
 

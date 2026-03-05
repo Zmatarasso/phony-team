@@ -39,7 +39,7 @@ function makeConfig(overrides: Partial<ServiceConfig> = {}): ServiceConfig {
       base_url: "https://example.atlassian.net",
       email: "user@example.com",
       api_token: "token",
-      project_key: "PHONY",
+      space_key: "PHONY",
       active_states: ["In Progress", "Todo"],
       terminal_states: ["Done", "Cancelled"],
     },

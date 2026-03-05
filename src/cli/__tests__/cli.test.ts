@@ -98,7 +98,7 @@ describe("CLI startup errors", () => {
         "  base_url: https://example.atlassian.net",
         "  email: user@example.com",
         "  api_token: token",
-        "  project_key: PHONY",
+        "  space_key: PHONY",
         "---",
         "Work on {{ issue.identifier }}.",
       ].join("\n"),

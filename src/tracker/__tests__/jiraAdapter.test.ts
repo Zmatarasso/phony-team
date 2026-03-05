@@ -8,7 +8,7 @@ const testConfig: TrackerConfig = {
   base_url: "https://test.atlassian.net",
   email: "test@example.com",
   api_token: "test-token",
-  project_key: "PHONY",
+  space_key: "PHONY",
   active_states: ["In Progress", "Todo"],
   terminal_states: ["Done", "Cancelled"],
 };

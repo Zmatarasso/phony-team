@@ -35,7 +35,7 @@ describe("startWatcher", () => {
     tmpDir = await mkdtemp(path.join(os.tmpdir(), "symphony-watcher-test-"));
     workflowPath = path.join(tmpDir, "WORKFLOW.md");
     // Write initial valid file
-    await writeFile(workflowPath, "---\ntracker:\n  project_key: INIT\n---\nInitial prompt.");
+    await writeFile(workflowPath, "---\ntracker:\n  space_key: INIT\n---\nInitial prompt.");
   });
 
   afterEach(async () => {
@@ -54,12 +54,12 @@ describe("startWatcher", () => {
       await watcher.ready;
       await writeFile(
         workflowPath,
-        "---\ntracker:\n  project_key: UPDATED\n---\nNew prompt.",
+        "---\ntracker:\n  space_key: UPDATED\n---\nNew prompt.",
       );
       const wf = await waitFor(() => received);
       expect(wf.prompt_template).toBe("New prompt.");
       expect(
-        (wf.config["tracker"] as Record<string, unknown>)["project_key"],
+        (wf.config["tracker"] as Record<string, unknown>)["space_key"],
       ).toBe("UPDATED");
     } finally {
       await watcher.stop();

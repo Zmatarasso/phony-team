@@ -13,7 +13,7 @@ A human reviews and merges every PR. Agents never touch `main` directly.
 - **Node.js 24+** (`nvm install 24 && nvm use 24`)
 - **npm**
 - **Claude API key** — [console.anthropic.com](https://console.anthropic.com)
-- **Jira account** — a project with states: `Todo`, `In Progress`, `Blocked`, `In Review`, `Done`, `Cancelled`
+- **Jira account** — a space with states: `Todo`, `In Progress`, `Blocked`, `In Review`, `Done`, `Cancelled`
 - **GitHub CLI** (`gh`) installed and authenticated (agents use it to create PRs)
 - **git** configured with push access to your repository
 
@@ -50,12 +50,12 @@ Get a Jira API token at: **Jira → Account Settings → Security → API tokens
 ### 3. Configure WORKFLOW.md
 
 The `WORKFLOW.md` at the repo root controls:
-- Which Jira project and states are active
+- Which Jira space and states are active
 - Workspace and concurrency settings
 - The prompt template sent to each agent
 
 The file ships with sensible defaults. At minimum, set the environment variables above
-and verify `tracker.project_key` matches your Jira project.
+and verify `tracker.space_key` matches your Jira space key (the 3-letter prefix on your issue IDs).
 
 ### 4. Run
 
@@ -76,7 +76,7 @@ symphony --port 3000
 
 ### Dispatch an issue to an agent
 
-1. Create a Jira issue in your project
+1. Create a Jira issue in your space
 2. Move it to **In Progress**
 3. Symphony picks it up on the next poll (default: 30s)
 4. The agent implements the issue, runs tests, and opens a PR

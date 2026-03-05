@@ -9,8 +9,8 @@ export interface TrackerConfig {
   readonly email: string;
   /** Jira API token for Basic auth. May be a $VAR reference. */
   readonly api_token: string;
-  /** Jira project key, e.g. PHONY */
-  readonly project_key: string;
+  /** Jira space key, e.g. ZMATA */
+  readonly space_key: string;
   /** Issue states considered active for dispatch. Default: ["Todo", "In Progress"] */
   readonly active_states: readonly string[];
   /** Issue states considered terminal. Default: ["Done", "Cancelled", "Closed", "Duplicate"] */

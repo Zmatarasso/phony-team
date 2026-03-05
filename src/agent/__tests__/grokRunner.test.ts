@@ -36,7 +36,7 @@ function makeConfig(maxTurns = 20, turnTimeoutMs = 60_000): ServiceConfig {
       base_url: "https://example.atlassian.net",
       email: "user@example.com",
       api_token: "token",
-      project_key: "PHONY",
+      space_key: "PHONY",
       active_states: ["In Progress"],
       terminal_states: ["Done"],
     },

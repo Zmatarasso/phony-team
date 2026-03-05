@@ -27,8 +27,8 @@ export function validateDispatchConfig(config: ServiceConfig): ValidationResult 
     );
   }
 
-  if (!config.tracker.project_key) {
-    errors.push("tracker.project_key is required");
+  if (!config.tracker.space_key) {
+    errors.push("tracker.space_key is required (set this to your Jira space key, e.g. ZMATA)");
   }
 
   if (!config.codex.command.trim()) {
