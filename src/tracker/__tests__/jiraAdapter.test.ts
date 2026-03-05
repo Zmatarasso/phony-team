@@ -98,6 +98,7 @@ describe("JiraAdapter.fetchCandidateIssues", () => {
       total: 2,
       startAt: 0,
       maxResults: 1,
+      nextPageToken: "page2token",
     };
     const page2 = {
       issues: [makeIssueRaw("2", "PHONY-2", "Todo")],
