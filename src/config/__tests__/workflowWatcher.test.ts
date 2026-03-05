@@ -51,6 +51,7 @@ describe("startWatcher", () => {
     );
 
     try {
+      await watcher.ready;
       await writeFile(
         workflowPath,
         "---\ntracker:\n  project_key: UPDATED\n---\nNew prompt.",
@@ -76,6 +77,7 @@ describe("startWatcher", () => {
     );
 
     try {
+      await watcher.ready;
       await writeFile(workflowPath, "---\n: broken: yaml: [\n---\nPrompt.");
       await waitFor(() => errorReceived);
       expect(reloadCalled).toBe(false);
@@ -95,6 +97,7 @@ describe("startWatcher", () => {
     );
 
     try {
+      await watcher.ready;
       await writeFile(workflowPath, "---\n- list item\n- another\n---\nPrompt.");
       await waitFor(() => errorReceived, 3000);
       expect(errorReceived).toBeDefined();
@@ -117,6 +120,7 @@ describe("startWatcher", () => {
     );
 
     try {
+      await watcher.ready;
       // Write three times in quick succession
       await writeFile(workflowPath, "---\n---\nFirst.");
       await writeFile(workflowPath, "---\n---\nSecond.");
@@ -142,6 +146,7 @@ describe("startWatcher", () => {
       () => { /* ignore */ },
     );
 
+    await watcher.ready;
     await watcher.stop();
 
     await writeFile(workflowPath, "---\n---\nAfter stop.");

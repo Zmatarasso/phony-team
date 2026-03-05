@@ -3,6 +3,8 @@ import { loadWorkflow } from "./workflowLoader.js";
 import type { WorkflowDefinition } from "../types/domain.js";
 
 export interface WatcherDisposable {
+  /** Resolves when chokidar has finished its initial scan and is actively watching. */
+  readonly ready: Promise<void>;
   stop(): Promise<void>;
 }
 
@@ -50,10 +52,13 @@ export function startWatcher(
     }, DEBOUNCE_MS);
   };
 
+  const ready = new Promise<void>((resolve) => watcher.on("ready", resolve));
+
   watcher.on("change", handleChange);
   watcher.on("add", handleChange);
 
   return {
+    ready,
     stop: async (): Promise<void> => {
       if (debounceTimer !== null) {
         clearTimeout(debounceTimer);
