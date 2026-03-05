@@ -60,6 +60,14 @@ export class JiraAdapter {
   }
 
   /**
+   * Fetch all issues in the space regardless of state. Used for debugging.
+   */
+  async fetchAllIssues(): Promise<Issue[]> {
+    const jql = `project = "${this.config.space_key}" ORDER BY created ASC`;
+    return this.fetchAllByJql(jql);
+  }
+
+  /**
    * Fetch current state for specific issue IDs. Used for reconciliation.
    * Returns minimal { id, identifier, state } objects.
    */

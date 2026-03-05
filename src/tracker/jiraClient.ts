@@ -50,6 +50,27 @@ export class JiraClient {
 
     if (!response.ok) {
       const text = await response.text().catch(() => "");
+      if (response.status === 429) {
+        const retryAfter = response.headers.get("Retry-After") ?? "unknown";
+        throw new TrackerError(
+          "jira_api_status",
+          `Jira rate limit hit (429) — retry after ${retryAfter}s. Consider increasing polling.interval_ms in WORKFLOW.md.`,
+        );
+      }
+      if (response.status === 401) {
+        throw new TrackerError(
+          "jira_api_status",
+          `Jira authentication failed (401) — check that JIRA_EMAIL and JIRA_API_TOKEN are correct. ` +
+          `API tokens are created at: id.atlassian.com/manage-profile/security/api-tokens`,
+        );
+      }
+      if (response.status === 403) {
+        throw new TrackerError(
+          "jira_api_status",
+          `Jira access denied (403) — the account may not have permission to access this space. ` +
+          `Check that JIRA_EMAIL has access to space "${this.baseUrl}".`,
+        );
+      }
       throw new TrackerError(
         "jira_api_status",
         `Jira API returned HTTP ${response.status} for ${method} ${path}: ${text}`,

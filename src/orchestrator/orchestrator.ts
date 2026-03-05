@@ -292,6 +292,22 @@ export class Orchestrator {
         space_key: config.tracker.space_key,
         active_states: config.tracker.active_states.join(", "),
       });
+      try {
+        const all = await this.adapter.fetchAllIssues();
+        if (all.length === 0) {
+          logger.info("Poll debug: no issues visible via API — check that JIRA_EMAIL has access to this space and that the space_key is correct", {
+            space_key: config.tracker.space_key,
+            base_url: config.tracker.base_url,
+            email: config.tracker.email,
+          });
+        } else {
+          logger.info("Poll debug: issues in space (all states)", {
+            issues: all.map((i) => `${i.identifier} — "${i.state}"`).join(", "),
+          });
+        }
+      } catch (err) {
+        logger.info("Poll debug: unfiltered fetch failed", { error: String(err) });
+      }
     } else if (eligible.length === 0) {
       logger.info("Poll: issues found but none eligible for dispatch", {
         found: candidates.length,
