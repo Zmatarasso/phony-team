@@ -17,6 +17,7 @@ export async function runHook(
   script: string,
   cwd: string,
   timeoutMs: number,
+  extraEnv: Record<string, string> = {},
 ): Promise<HookResult> {
   return new Promise((resolve, reject) => {
     let timedOut = false;
@@ -28,7 +29,7 @@ export async function runHook(
       proc = spawn("bash", ["-lc", script], {
         cwd,
         stdio: ["ignore", "pipe", "pipe"],
-        env: process.env,
+        env: { ...process.env, ...extraEnv },
       });
     } catch (err) {
       reject(

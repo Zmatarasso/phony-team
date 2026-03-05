@@ -42,9 +42,12 @@ export class WorkspaceManager {
   private readonly workspaceConfig: WorkspaceConfig;
   private readonly hooksConfig: HooksConfig;
 
+  private readonly hookEnv: Record<string, string>;
+
   constructor(workspaceConfig: WorkspaceConfig, hooksConfig: HooksConfig) {
     this.workspaceConfig = workspaceConfig;
     this.hooksConfig = hooksConfig;
+    this.hookEnv = workspaceConfig.repo_url ? { REPO_URL: workspaceConfig.repo_url } : {};
   }
 
   /**
@@ -90,6 +93,7 @@ export class WorkspaceManager {
           this.hooksConfig.after_create,
           workspacePath,
           this.hooksConfig.timeout_ms,
+          this.hookEnv,
         );
       } catch (err) {
         // after_create failure is fatal — remove the partially created directory
@@ -128,6 +132,7 @@ export class WorkspaceManager {
           this.hooksConfig.before_remove,
           workspacePath,
           this.hooksConfig.timeout_ms,
+          this.hookEnv,
         );
       } catch {
         // before_remove failure is logged and ignored; cleanup proceeds
@@ -143,7 +148,7 @@ export class WorkspaceManager {
    */
   async runBeforeHook(workspacePath: string): Promise<void> {
     if (!this.hooksConfig.before_run) return;
-    await runHook(this.hooksConfig.before_run, workspacePath, this.hooksConfig.timeout_ms);
+    await runHook(this.hooksConfig.before_run, workspacePath, this.hooksConfig.timeout_ms, this.hookEnv);
   }
 
   /**
@@ -153,7 +158,7 @@ export class WorkspaceManager {
   async runAfterHook(workspacePath: string): Promise<void> {
     if (!this.hooksConfig.after_run) return;
     try {
-      await runHook(this.hooksConfig.after_run, workspacePath, this.hooksConfig.timeout_ms);
+      await runHook(this.hooksConfig.after_run, workspacePath, this.hooksConfig.timeout_ms, this.hookEnv);
     } catch {
       // Intentionally swallowed — after_run failures must not affect orchestration
     }

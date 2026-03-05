@@ -18,8 +18,10 @@ polling:
 
 workspace:
   root: ~/symphony_workspaces
+  repo_url: https://github.com/Zmatarasso/phony-team.git
 
 hooks:
+  after_create: git clone $REPO_URL .
   before_run: git fetch origin && git merge origin/main || true
 
 agent:
@@ -118,7 +120,7 @@ gh pr create \
 ```
 
 Then call `jira_api` to:
-1. Transition the issue to **In Review**
+1. Transition the issue to **Waiting**
 2. Post the PR URL as a comment on the issue
 
 Do not merge the PR yourself. A human will review and merge.

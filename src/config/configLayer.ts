@@ -201,6 +201,7 @@ export function buildConfig(raw: Record<string, unknown>): ServiceConfig {
   const rawRoot = getString(workspaceRaw, "root") ?? DEFAULT_WORKSPACE_ROOT;
   const workspace: WorkspaceConfig = {
     root: expandPath(rawRoot),
+    repo_url: getString(workspaceRaw, "repo_url") ?? null,
   };
 
   // hooks

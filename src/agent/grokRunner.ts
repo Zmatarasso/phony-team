@@ -302,12 +302,18 @@ export class GrokRunner {
   ): Promise<OpenAI.Chat.Completions.ChatCompletion> {
     const controller = new AbortController();
     const outerSignal = this.options.signal;
+    const onAbort = (): void => controller.abort();
     if (outerSignal?.aborted) {
       controller.abort();
     } else {
-      outerSignal?.addEventListener("abort", () => controller.abort(), { once: true });
+      outerSignal?.addEventListener("abort", onAbort, { once: true });
     }
     const timer = setTimeout(() => controller.abort(), timeoutMs);
+    this.options.logger.info("xAI API call", {
+      issue_id: this.options.issue.id,
+      model: this.options.config.grok.model,
+      turn: messages.length,
+    });
     try {
       return await this.client.chat.completions.create(
         {
@@ -321,6 +327,7 @@ export class GrokRunner {
       );
     } finally {
       clearTimeout(timer);
+      outerSignal?.removeEventListener("abort", onAbort);
     }
   }
 

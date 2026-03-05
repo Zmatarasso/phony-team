@@ -25,6 +25,8 @@ export interface PollingConfig {
 export interface WorkspaceConfig {
   /** Root directory for all per-issue workspaces. Default: <tmpdir>/symphony_workspaces */
   readonly root: string;
+  /** GitHub repo URL to clone into each new workspace. Exposed as $REPO_URL in hooks. */
+  readonly repo_url: string | null;
 }
 
 export interface HooksConfig {

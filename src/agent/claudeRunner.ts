@@ -249,12 +249,18 @@ export class AgentRunner {
   ): Promise<Anthropic.Message> {
     const controller = new AbortController();
     const outerSignal = this.options.signal;
+    const onAbort = (): void => controller.abort();
     if (outerSignal?.aborted) {
       controller.abort();
     } else {
-      outerSignal?.addEventListener("abort", () => controller.abort(), { once: true });
+      outerSignal?.addEventListener("abort", onAbort, { once: true });
     }
     const timer = setTimeout(() => controller.abort(), timeoutMs);
+    this.options.logger.info("Anthropic API call", {
+      issue_id: this.options.issue.id,
+      model: "claude-opus-4-6",
+      turn: messages.length,
+    });
     try {
       return await this.client.messages.create(
         {
@@ -268,6 +274,7 @@ export class AgentRunner {
       );
     } finally {
       clearTimeout(timer);
+      outerSignal?.removeEventListener("abort", onAbort);
     }
   }
 

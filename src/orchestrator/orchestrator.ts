@@ -482,20 +482,33 @@ export class Orchestrator {
     const entry = this.state.running.get(issueId);
     if (!entry) return;
 
-    if (event.event === "token_usage_updated") {
-      this.state.codex_totals.input_tokens = event.usage.input_tokens;
-      this.state.codex_totals.output_tokens = event.usage.output_tokens;
-      this.state.codex_totals.total_tokens = event.usage.total_tokens;
-    }
-
-    // Update last event info on the running entry's session
     const updatedSession = {
       ...entry.session,
       last_codex_event: event.event,
       last_codex_timestamp: event.timestamp,
     };
 
-    // We need to replace the entry since RunningEntry.session is Partial<LiveSession>
+    if (event.event === "token_usage_updated") {
+      updatedSession.codex_input_tokens = event.usage.input_tokens;
+      updatedSession.codex_output_tokens = event.usage.output_tokens;
+      updatedSession.codex_total_tokens = event.usage.total_tokens;
+
+      // Recompute global totals as sum across all running sessions
+      let totalInput = 0;
+      let totalOutput = 0;
+      for (const [id, e] of this.state.running) {
+        const tokens = id === issueId ? event.usage : {
+          input_tokens: e.session.codex_input_tokens ?? 0,
+          output_tokens: e.session.codex_output_tokens ?? 0,
+        };
+        totalInput += tokens.input_tokens;
+        totalOutput += tokens.output_tokens;
+      }
+      this.state.codex_totals.input_tokens = totalInput;
+      this.state.codex_totals.output_tokens = totalOutput;
+      this.state.codex_totals.total_tokens = totalInput + totalOutput;
+    }
+
     const updatedEntry: RunningEntry = { ...entry, session: updatedSession };
     this.state.running.set(issueId, updatedEntry);
     this.notifyListeners();

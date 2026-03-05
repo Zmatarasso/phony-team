@@ -20,9 +20,10 @@ const ISSUE_FIELDS = [
 
 interface JiraSearchResponse {
   issues: unknown[];
-  total: number;
-  startAt: number;
-  maxResults: number;
+  total?: number;
+  startAt?: number;
+  maxResults?: number;
+  nextPageToken?: string;
 }
 
 export class JiraAdapter {
@@ -85,15 +86,17 @@ export class JiraAdapter {
 
   private async fetchAllByJql(jql: string): Promise<Issue[]> {
     const results: Issue[] = [];
-    let startAt = 0;
+    let nextPageToken: string | undefined;
 
     while (true) {
       const params = new URLSearchParams({
         jql,
-        startAt: String(startAt),
         maxResults: String(PAGE_SIZE),
         fields: ISSUE_FIELDS,
       });
+      if (nextPageToken) {
+        params.set("nextPageToken", nextPageToken);
+      }
 
       const data = await this.client.request<JiraSearchResponse>(
         "GET",
@@ -111,9 +114,8 @@ export class JiraAdapter {
         results.push(normalizeIssue(raw as RawJiraIssue));
       }
 
-      const fetched = startAt + data.issues.length;
-      if (fetched >= data.total || data.issues.length === 0) break;
-      startAt = fetched;
+      if (!data.nextPageToken || data.issues.length === 0) break;
+      nextPageToken = data.nextPageToken;
     }
 
     return results;

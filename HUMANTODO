@@ -21,11 +21,26 @@ Edit `.env` and fill in:
 
 ## 3. Configure WORKFLOW.md
 
-Open `WORKFLOW.md` and set `tracker.space_key` to your Jira space key
+Open `WORKFLOW.md` and make the following changes:
+
+**Jira space:**
+Set `tracker.space_key` to your Jira space key
 (the prefix on your issue IDs — e.g. if issues are `ZMATA-1`, the key is `ZMATA`).
 
-Also set `tracker.active_states` to match the exact status names in your Jira space.
+Set `tracker.active_states` to match the exact status names in your Jira space.
 To find them: open any issue in Jira and look at the Status field.
+
+**GitHub repo:**
+Set `workspace.repo_url` to the repo agents will work on:
+```yaml
+workspace:
+  root: ~/symphony_workspaces
+  repo_url: https://github.com/YOUR_ORG/YOUR_REPO.git
+```
+This is automatically passed as `$REPO_URL` to hook scripts. The `after_create`
+hook uses it to clone the repo into each new workspace. The agent will push
+branches and open PRs against this repo. Make sure `gh auth login` is done
+first (step 4) so the agent can create PRs.
 
 ## 4. Install GitHub CLI and authenticate
 
@@ -47,7 +62,11 @@ npm run phony
 1. Go to your Jira space
 2. Click **Create** and write an issue with a clear title and description
 3. Move the issue to one of your configured `active_states` (e.g. "In Progress")
-4. Symphony will pick it up within 30 seconds
+4. Symphony will pick it up on the next poll
+
+Once the agent finishes, it will open a PR on the GitHub repo configured in
+`hooks.after_create`. Review and merge the PR at:
+`https://github.com/YOUR_ORG/YOUR_REPO/pulls`
 
 ## 7. Monitor progress
 
