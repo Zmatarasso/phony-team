@@ -17,7 +17,7 @@ function renderApp(): string {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      background: #000000;
       color: #e0e0e0;
       min-height: 100vh;
       display: flex;
