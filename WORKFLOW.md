@@ -12,6 +12,8 @@ tracker:
     - Cancelled
     - Closed
     - Duplicate
+    - Testing
+    - Waiting
 
 polling:
   interval_ms: 1500000

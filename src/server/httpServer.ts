@@ -3,6 +3,7 @@ import type { Server } from "http";
 import type { AddressInfo } from "net";
 import type { Orchestrator } from "../orchestrator/orchestrator.js";
 import type { OrchestratorRuntimeState, RunningEntry, RetryEntry } from "../types/domain.js";
+import type { TokenTracker, DayRecord } from "../logging/tokenTracker.js";
 
 // --- Response shape helpers ---
 
@@ -66,7 +67,27 @@ function buildStateResponse(state: Readonly<OrchestratorRuntimeState>): Record<s
 
 // --- Dashboard HTML ---
 
-function renderDashboard(state: Readonly<OrchestratorRuntimeState>): string {
+function renderDailyUsage(usage: Record<string, DayRecord>): string {
+  const days = Object.keys(usage).sort().reverse();
+  if (days.length === 0) return '<p class="empty">No token usage recorded yet.</p>';
+  const rows = days
+    .map((d) => {
+      const r = usage[d]!;
+      return `<tr>
+        <td>${esc(d)}</td>
+        <td>${r.input_tokens.toLocaleString()}</td>
+        <td>${r.output_tokens.toLocaleString()}</td>
+        <td>${r.total_tokens.toLocaleString()}</td>
+      </tr>`;
+    })
+    .join("\n");
+  return `<table>
+  <thead><tr><th>Date</th><th>Input</th><th>Output</th><th>Total</th></tr></thead>
+  <tbody>${rows}</tbody>
+</table>`;
+}
+
+function renderDashboard(state: Readonly<OrchestratorRuntimeState>, dailyUsage: Record<string, DayRecord>): string {
   const running = Array.from(state.running.values());
   const retrying = Array.from(state.retry_attempts.values());
 
@@ -145,6 +166,9 @@ function renderDashboard(state: Readonly<OrchestratorRuntimeState>): string {
     <thead><tr><th>Issue</th><th>Attempt</th><th>Due In</th><th>Last Error</th></tr></thead>
     <tbody>${retryRows}</tbody>
   </table>`}
+
+  <h2>Token Usage by Day</h2>
+  ${renderDailyUsage(dailyUsage)}
 </body>
 </html>`;
 }
@@ -164,7 +188,7 @@ export interface SymphonyServer {
   stop(): Promise<void>;
 }
 
-export async function startServer(orchestrator: Orchestrator, port: number): Promise<SymphonyServer> {
+export async function startServer(orchestrator: Orchestrator, port: number, tokenTracker: TokenTracker): Promise<SymphonyServer> {
   const app = express();
   app.use(express.json());
 
@@ -208,8 +232,11 @@ export async function startServer(orchestrator: Orchestrator, port: number): Pro
 
   // GET / — dashboard
   app.get("/", (_req: Request, res: Response) => {
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
-    res.send(renderDashboard(orchestrator.getState()));
+    void (async () => {
+      const dailyUsage = await tokenTracker.getUsage().catch(() => ({}));
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.send(renderDashboard(orchestrator.getState(), dailyUsage));
+    })();
   });
 
   // 404 for undefined routes

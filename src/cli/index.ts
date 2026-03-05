@@ -114,7 +114,7 @@ async function main(): Promise<void> {
   let server: SymphonyServer | null = null;
   if (serverPort !== undefined) {
     try {
-      server = await startServer(orchestrator, serverPort);
+      server = await startServer(orchestrator, serverPort, orchestrator.getTokenTracker());
       logger.info(`HTTP server listening on http://127.0.0.1:${server.port}`);
     } catch (err) {
       logger.warn("Failed to start HTTP server", { error: String(err) });

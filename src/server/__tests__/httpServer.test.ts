@@ -3,6 +3,14 @@ import request from "supertest";
 import { startServer } from "../httpServer.js";
 import type { Orchestrator } from "../../orchestrator/orchestrator.js";
 import type { OrchestratorRuntimeState } from "../../types/domain.js";
+import type { TokenTracker } from "../../logging/tokenTracker.js";
+
+function makeMockTokenTracker(): TokenTracker {
+  return {
+    getUsage: jest.fn<() => Promise<Record<string, never>>>().mockResolvedValue({}),
+    recordTokens: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  } as unknown as TokenTracker;
+}
 
 // --- Mock orchestrator ---
 
@@ -32,7 +40,7 @@ function makeMockOrchestrator(state: OrchestratorRuntimeState = makeState()): Or
 describe("GET /api/v1/state", () => {
   it("returns 200 with correct shape", async () => {
     const orch = makeMockOrchestrator();
-    const srv = await startServer(orch, 0);
+    const srv = await startServer(orch, 0, makeMockTokenTracker());
     try {
       const res = await request(`http://127.0.0.1:${srv.port}`).get("/api/v1/state");
       expect(res.status).toBe(200);
@@ -74,7 +82,7 @@ describe("GET /api/v1/state", () => {
     };
     const state = makeState({ running: new Map([["1", runningEntry]]) });
     const orch = makeMockOrchestrator(state);
-    const srv = await startServer(orch, 0);
+    const srv = await startServer(orch, 0, makeMockTokenTracker());
     try {
       const res = await request(`http://127.0.0.1:${srv.port}`).get("/api/v1/state");
       expect(res.status).toBe(200);
@@ -90,7 +98,7 @@ describe("GET /api/v1/state", () => {
 describe("GET /api/v1/:identifier", () => {
   it("returns 404 for unknown identifier", async () => {
     const orch = makeMockOrchestrator();
-    const srv = await startServer(orch, 0);
+    const srv = await startServer(orch, 0, makeMockTokenTracker());
     try {
       const res = await request(`http://127.0.0.1:${srv.port}`).get("/api/v1/PHONY-99");
       expect(res.status).toBe(404);
@@ -125,7 +133,7 @@ describe("GET /api/v1/:identifier", () => {
       abort_controller: new AbortController(),
     };
     const state = makeState({ running: new Map([["2", runningEntry]]) });
-    const srv = await startServer(makeMockOrchestrator(state), 0);
+    const srv = await startServer(makeMockOrchestrator(state), 0, makeMockTokenTracker());
     try {
       const res = await request(`http://127.0.0.1:${srv.port}`).get("/api/v1/PHONY-2");
       expect(res.status).toBe(200);
@@ -140,7 +148,7 @@ describe("GET /api/v1/:identifier", () => {
 describe("POST /api/v1/refresh", () => {
   it("returns 202 and triggers orchestrator poll", async () => {
     const orch = makeMockOrchestrator();
-    const srv = await startServer(orch, 0);
+    const srv = await startServer(orch, 0, makeMockTokenTracker());
     try {
       const res = await request(`http://127.0.0.1:${srv.port}`).post("/api/v1/refresh");
       expect(res.status).toBe(202);
@@ -155,7 +163,7 @@ describe("POST /api/v1/refresh", () => {
 describe("GET / (dashboard)", () => {
   it("returns 200 HTML", async () => {
     const orch = makeMockOrchestrator();
-    const srv = await startServer(orch, 0);
+    const srv = await startServer(orch, 0, makeMockTokenTracker());
     try {
       const res = await request(`http://127.0.0.1:${srv.port}`).get("/");
       expect(res.status).toBe(200);
@@ -168,7 +176,7 @@ describe("GET / (dashboard)", () => {
 
   it("dashboard contains no <script> tags", async () => {
     const orch = makeMockOrchestrator();
-    const srv = await startServer(orch, 0);
+    const srv = await startServer(orch, 0, makeMockTokenTracker());
     try {
       const res = await request(`http://127.0.0.1:${srv.port}`).get("/");
       expect(res.text).not.toContain("<script");
@@ -179,7 +187,7 @@ describe("GET / (dashboard)", () => {
 
   it("dashboard includes auto-refresh meta tag", async () => {
     const orch = makeMockOrchestrator();
-    const srv = await startServer(orch, 0);
+    const srv = await startServer(orch, 0, makeMockTokenTracker());
     try {
       const res = await request(`http://127.0.0.1:${srv.port}`).get("/");
       expect(res.text).toContain("http-equiv=\"refresh\"");
@@ -192,7 +200,7 @@ describe("GET / (dashboard)", () => {
 describe("404 for undefined routes", () => {
   it("returns 404 JSON for unknown path", async () => {
     const orch = makeMockOrchestrator();
-    const srv = await startServer(orch, 0);
+    const srv = await startServer(orch, 0, makeMockTokenTracker());
     try {
       const res = await request(`http://127.0.0.1:${srv.port}`).get("/nonexistent/route");
       expect(res.status).toBe(404);
@@ -206,7 +214,7 @@ describe("404 for undefined routes", () => {
 describe("405 for wrong method on defined routes", () => {
   it("returns 405 for GET on /api/v1/refresh", async () => {
     const orch = makeMockOrchestrator();
-    const srv = await startServer(orch, 0);
+    const srv = await startServer(orch, 0, makeMockTokenTracker());
     try {
       const res = await request(`http://127.0.0.1:${srv.port}`).get("/api/v1/refresh");
       // Express returns 404 for wrong method unless we add method-not-allowed handling
@@ -219,7 +227,7 @@ describe("405 for wrong method on defined routes", () => {
 
   it("returns 405 for POST on /api/v1/state", async () => {
     const orch = makeMockOrchestrator();
-    const srv = await startServer(orch, 0);
+    const srv = await startServer(orch, 0, makeMockTokenTracker());
     try {
       const res = await request(`http://127.0.0.1:${srv.port}`).post("/api/v1/state");
       expect(res.status).not.toBe(200);
@@ -232,7 +240,7 @@ describe("405 for wrong method on defined routes", () => {
 describe("Server binding", () => {
   it("binds to 127.0.0.1", async () => {
     const orch = makeMockOrchestrator();
-    const srv = await startServer(orch, 0);
+    const srv = await startServer(orch, 0, makeMockTokenTracker());
     try {
       // If it bound to 127.0.0.1, a request to localhost should work
       const res = await request(`http://127.0.0.1:${srv.port}`).get("/api/v1/state");

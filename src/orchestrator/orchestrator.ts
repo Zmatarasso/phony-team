@@ -10,6 +10,7 @@ import { WorkspaceManager, getWorkspacePath } from "../workspace/workspaceManage
 import { AgentRunner } from "../agent/claudeRunner.js";
 import { GrokRunner } from "../agent/grokRunner.js";
 import { buildPrompt } from "../agent/promptBuilder.js";
+import { TokenTracker } from "../logging/tokenTracker.js";
 
 export interface OrchestratorOptions {
   readonly config: ServiceConfig;
@@ -70,6 +71,7 @@ export class Orchestrator {
   private readonly workspaceManager: WorkspaceManager;
   private readonly runnerFactory: RunnerFactory;
   private readonly listeners: Set<StateListener> = new Set();
+  private readonly tokenTracker: TokenTracker = new TokenTracker();
 
   private workflow: WorkflowDefinition;
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
@@ -159,6 +161,10 @@ export class Orchestrator {
 
   getState(): Readonly<OrchestratorRuntimeState> {
     return this.state;
+  }
+
+  getTokenTracker(): TokenTracker {
+    return this.tokenTracker;
   }
 
   // --- Private ---
@@ -489,6 +495,11 @@ export class Orchestrator {
     };
 
     if (event.event === "token_usage_updated") {
+      const prevInput = entry.session.codex_input_tokens ?? 0;
+      const prevOutput = entry.session.codex_output_tokens ?? 0;
+      const deltaInput = event.usage.input_tokens - prevInput;
+      const deltaOutput = event.usage.output_tokens - prevOutput;
+
       updatedSession.codex_input_tokens = event.usage.input_tokens;
       updatedSession.codex_output_tokens = event.usage.output_tokens;
       updatedSession.codex_total_tokens = event.usage.total_tokens;
@@ -507,6 +518,9 @@ export class Orchestrator {
       this.state.codex_totals.input_tokens = totalInput;
       this.state.codex_totals.output_tokens = totalOutput;
       this.state.codex_totals.total_tokens = totalInput + totalOutput;
+
+      // Persist delta to daily token usage file (fire-and-forget)
+      this.tokenTracker.recordTokens(deltaInput, deltaOutput).catch(() => undefined);
     }
 
     const updatedEntry: RunningEntry = { ...entry, session: updatedSession };
@@ -536,12 +550,14 @@ export class Orchestrator {
     }
 
     if (err === null) {
-      // Normal exit — schedule continuation retry with fixed 1000ms delay
-      logger.info("Agent session completed, scheduling continuation check", {
+      // Normal exit — trigger a fresh poll to re-fetch current state from Jira
+      // before deciding whether to re-dispatch. This prevents re-spawning agents
+      // on tickets the agent has already transitioned to a non-active state.
+      logger.info("Agent session completed, triggering fresh poll", {
         issue_id: issue.id,
         issue_identifier: issue.identifier,
       });
-      this.scheduleRetry(issue, 1, CONTINUATION_RETRY_MS);
+      this.schedulePoll(CONTINUATION_RETRY_MS);
     } else {
       // Error exit — exponential backoff
       const nextAttempt = (retryAttempt ?? 0) + 1;
@@ -560,9 +576,20 @@ export class Orchestrator {
   }
 
   private scheduleRetry(issue: Issue, attempt: number, delayMs: number): void {
+    const { config, logger } = this.options;
     const timerHandle = setTimeout(() => {
       this.state.retry_attempts.delete(issue.id);
       if (!this.stopping) {
+        if (!config.tracker.active_states.includes(issue.state)) {
+          logger.warn("Skipping retry — issue is no longer in an active state", {
+            issue_id: issue.id,
+            issue_identifier: issue.identifier,
+            state: issue.state,
+            active_states: config.tracker.active_states.join(", "),
+          });
+          this.state.claimed.delete(issue.id);
+          return;
+        }
         this.state.claimed.add(issue.id);
         this.spawnWorker(issue, attempt);
         this.notifyListeners();
