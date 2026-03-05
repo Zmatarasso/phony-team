@@ -21,6 +21,8 @@
     "Bash(nvm *)",
     "Bash(source ~/.nvm/nvm.sh*)",
     "Bash(npm test*)",
-    "Bash(npm run test*)"
+    "Bash(npm run test*)",
+    "Bash(grep *)",
+    "Grep"
   ]
 }
