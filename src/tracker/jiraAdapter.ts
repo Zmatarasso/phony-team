@@ -88,7 +88,7 @@ export class JiraAdapter {
 
       const data = await this.client.request<JiraSearchResponse>(
         "GET",
-        `/rest/api/3/search?${params.toString()}`,
+        `/rest/api/3/search/jql?${params.toString()}`,
       );
 
       if (!Array.isArray(data.issues)) {

@@ -39,7 +39,7 @@ gh auth login
 ## 5. Start Symphony
 
 ```bash
-source .env && npm run phony
+npm run phony
 ```
 
 ## 6. Create a ticket

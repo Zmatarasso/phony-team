@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import "dotenv/config";
 import process from "process";
 import path from "path";
 import { fileURLToPath } from "url";
