@@ -23,6 +23,10 @@
     "Bash(npm test*)",
     "Bash(npm run test*)",
     "Bash(grep *)",
+    "Bash(source ~/.nvm/nvm.sh && nvm use 24 --silent && npm test 2>&1 | grep*)",
+    "Bash(source ~/.nvm/nvm.sh && nvm use 24 --silent && npm test -- --verbose 2>&1 | grep*)",
+    "Bash(source ~/.nvm/nvm.sh && nvm use 24 --silent && npm test -- --verbose 2>&1 | tail*)",
+    "Bash(source ~/.nvm/nvm.sh && nvm use 24 --silent && npm test 2>&1 | tail*)",
     "Grep"
   ]
 }
