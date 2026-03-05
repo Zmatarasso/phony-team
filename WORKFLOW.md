@@ -23,7 +23,7 @@ hooks:
   before_run: git fetch origin && git merge origin/main || true
 
 agent:
-  max_concurrent_agents: 3
+  max_concurrent_agents: 1
   max_turns: 30
 
 codex:

@@ -287,6 +287,25 @@ export class Orchestrator {
 
     const eligible = sortIssues(candidates).filter((issue) => this.shouldDispatch(issue));
 
+    if (candidates.length === 0) {
+      logger.info("Poll: no issues found in active states", {
+        space_key: config.tracker.space_key,
+        active_states: config.tracker.active_states.join(", "),
+      });
+    } else if (eligible.length === 0) {
+      logger.info("Poll: issues found but none eligible for dispatch", {
+        found: candidates.length,
+        identifiers: candidates.map((i) => `${i.identifier} (${i.state})`).join(", "),
+        running: this.state.running.size,
+        max_concurrent_agents: this.state.max_concurrent_agents,
+      });
+    } else {
+      logger.info("Poll: dispatching issues", {
+        eligible: eligible.length,
+        identifiers: eligible.map((i) => i.identifier).join(", "),
+      });
+    }
+
     for (const issue of eligible) {
       if (!this.hasGlobalSlot()) break;
       if (!this.hasStateSlot(issue.state)) continue;
