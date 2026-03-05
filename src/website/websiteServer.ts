@@ -67,6 +67,15 @@ function renderApp(): string {
     }
     .loading { color: #a0a0a0; font-style: italic; }
     .error { color: #e94560; }
+    .ascii-cat {
+      text-align: center;
+      margin-top: 2rem;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.85rem;
+      line-height: 1.2;
+      color: #a0a0a0;
+      white-space: pre;
+    }
   </style>
 </head>
 <body>
@@ -167,13 +176,28 @@ function renderApp(): string {
       );
     }
 
+    function CatAscii() {
+      var cat = [
+        '  /\\\\_/\\\\  ',
+        ' ( o.o ) ',
+        '  > ^ <  ',
+        ' /|   |\\\\',
+        '(_|   |_)'
+      ].join('\\n');
+
+      return e('div', { className: 'ascii-cat' },
+        e('pre', null, cat)
+      );
+    }
+
     function App() {
       return e('div', null,
         e('h1', null, '\\u23F0 Time & Weather'),
         e('div', { className: 'widgets' },
           e(TimeWidget),
           e(WeatherWidget)
-        )
+        ),
+        e(CatAscii)
       );
     }
 
