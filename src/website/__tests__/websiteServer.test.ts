@@ -69,6 +69,13 @@ describe("Website - GET / (frontend)", () => {
     expect(res.text).toContain("/api/time");
     expect(res.text).toContain("/api/weather");
   });
+
+  it("HTML contains an ASCII cat picture", async () => {
+    const res = await request(app).get("/");
+    expect(res.text).toContain("ascii-cat");
+    expect(res.text).toContain("CatAscii");
+    expect(res.text).toContain("( o.o )");
+  });
 });
 
 describe("Website - 404 handling", () => {
