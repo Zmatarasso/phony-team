@@ -29,12 +29,13 @@ export class JiraAdapter {
   private readonly client: JiraClient;
   private readonly config: TrackerConfig;
 
-  constructor(config: TrackerConfig) {
+  constructor(config: TrackerConfig, onRequest?: (method: string, path: string) => void) {
     this.config = config;
     this.client = new JiraClient({
       baseUrl: config.base_url,
       email: config.email,
       apiToken: config.api_token,
+      ...(onRequest ? { onRequest } : {}),
     });
   }
 

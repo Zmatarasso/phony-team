@@ -5,6 +5,7 @@ import type { WorkflowDefinition } from "../types/domain.js";
 import type { Logger } from "../logging/logger.js";
 import { JiraAdapter } from "../tracker/jiraAdapter.js";
 import { JiraClient } from "../tracker/jiraClient.js";
+import { RateLimitError } from "../types/errors.js";
 import { WorkspaceManager, getWorkspacePath } from "../workspace/workspaceManager.js";
 import { AgentRunner } from "../agent/claudeRunner.js";
 import { GrokRunner } from "../agent/grokRunner.js";
@@ -90,15 +91,16 @@ export class Orchestrator {
       codex_rate_limits: null,
       jira_api_calls: 0,
     };
-    this.adapter = options._adapter ?? new JiraAdapter(config.tracker);
+    const onJiraRequest = (method: string, path: string): void => {
+      this.state.jira_api_calls++;
+      options.logger.info(`Jira API call #${this.state.jira_api_calls}`, { method, path });
+    };
+    this.adapter = options._adapter ?? new JiraAdapter(config.tracker, onJiraRequest);
     this.jiraClient = new JiraClient({
       baseUrl: config.tracker.base_url,
       email: config.tracker.email,
       apiToken: config.tracker.api_token,
-      onRequest: (method, path) => {
-        this.state.jira_api_calls++;
-        options.logger.info(`Jira API call #${this.state.jira_api_calls}`, { method, path });
-      },
+      onRequest: onJiraRequest,
     });
     this.workspaceManager = options._workspaceManager ?? new WorkspaceManager(
       config.workspace,
@@ -181,20 +183,34 @@ export class Orchestrator {
   private async tick(): Promise<void> {
     if (this.stopping) return;
 
+    let rateLimitMs: number | null = null;
+
     try {
       await this.reconcile();
     } catch (err) {
+      if (err instanceof RateLimitError) {
+        rateLimitMs = err.retryAfterMs;
+      }
       this.options.logger.warn("Reconciliation failed", { error: String(err) });
     }
 
     try {
       await this.dispatch();
     } catch (err) {
+      if (err instanceof RateLimitError) {
+        rateLimitMs = Math.max(rateLimitMs ?? 0, err.retryAfterMs);
+      }
       this.options.logger.warn("Dispatch failed", { error: String(err) });
     }
 
     this.notifyListeners();
-    this.schedulePoll(this.state.poll_interval_ms);
+    const nextPollMs = rateLimitMs !== null
+      ? Math.max(rateLimitMs, this.state.poll_interval_ms)
+      : this.state.poll_interval_ms;
+    if (rateLimitMs !== null) {
+      this.options.logger.warn(`Rate limited — next poll in ${nextPollMs / 1000}s`);
+    }
+    this.schedulePoll(nextPollMs);
   }
 
   private async startupCleanup(): Promise<void> {

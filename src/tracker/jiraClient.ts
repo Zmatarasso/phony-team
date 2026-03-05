@@ -1,4 +1,4 @@
-import { TrackerError } from "../types/errors.js";
+import { TrackerError, RateLimitError } from "../types/errors.js";
 
 export interface JiraClientConfig {
   readonly baseUrl: string;
@@ -55,11 +55,9 @@ export class JiraClient {
     if (!response.ok) {
       const text = await response.text().catch(() => "");
       if (response.status === 429) {
-        const retryAfter = response.headers.get("Retry-After") ?? "unknown";
-        throw new TrackerError(
-          "jira_api_status",
-          `Jira rate limit hit (429) — retry after ${retryAfter}s. Consider increasing polling.interval_ms in WORKFLOW.md.`,
-        );
+        const retryAfterSec = parseInt(response.headers.get("Retry-After") ?? "0", 10);
+        const retryAfterMs = Math.max(retryAfterSec * 1000, 10_000);
+        throw new RateLimitError(retryAfterMs);
       }
       if (response.status === 401) {
         throw new TrackerError(

@@ -87,6 +87,18 @@ export class TrackerError extends SymphonyError {
   }
 }
 
+export class RateLimitError extends TrackerError {
+  readonly retryAfterMs: number;
+  constructor(retryAfterMs: number) {
+    super(
+      "jira_api_status",
+      `Jira rate limit hit (429) — retrying after ${retryAfterMs / 1000}s. Consider increasing polling.interval_ms in WORKFLOW.md.`,
+    );
+    this.name = "RateLimitError";
+    this.retryAfterMs = retryAfterMs;
+  }
+}
+
 export class WorkspaceError extends SymphonyError {
   constructor(code: SymphonyErrorCode, message: string, cause?: unknown) {
     super(code, message, cause);
