@@ -93,11 +93,26 @@ describe("validateDispatchConfig", () => {
   });
 
   it("accumulates multiple errors", () => {
-    const config = buildConfig({});
-    const result = validateDispatchConfig(config);
-    expect(result.ok).toBe(false);
-    // api_token, email, base_url, space_key all missing
-    expect(result.errors.length).toBeGreaterThanOrEqual(4);
+    // Clear env vars that buildConfig({}) would resolve via $JIRA_* defaults,
+    // so that all tracker fields end up empty and validation catches them all.
+    const savedApiToken = process.env["JIRA_API_TOKEN"];
+    const savedEmail = process.env["JIRA_EMAIL"];
+    const savedBaseUrl = process.env["JIRA_BASE_URL"];
+    delete process.env["JIRA_API_TOKEN"];
+    delete process.env["JIRA_EMAIL"];
+    delete process.env["JIRA_BASE_URL"];
+    try {
+      const config = buildConfig({});
+      const result = validateDispatchConfig(config);
+      expect(result.ok).toBe(false);
+      // api_token, email, base_url, space_key all missing
+      expect(result.errors.length).toBeGreaterThanOrEqual(4);
+    } finally {
+      // Restore env vars
+      if (savedApiToken !== undefined) process.env["JIRA_API_TOKEN"] = savedApiToken;
+      if (savedEmail !== undefined) process.env["JIRA_EMAIL"] = savedEmail;
+      if (savedBaseUrl !== undefined) process.env["JIRA_BASE_URL"] = savedBaseUrl;
+    }
   });
 
   it("fails when $VAR resolves to empty string", () => {
