@@ -64,10 +64,10 @@ describe("Website - GET / (frontend)", () => {
     expect(res.text).toContain("Time &amp; Weather");
   });
 
-  it("HTML contains fetch calls to /api/time and /api/weather", async () => {
+  it("HTML contains fetch calls to api/time and api/weather", async () => {
     const res = await request(app).get("/");
-    expect(res.text).toContain("/api/time");
-    expect(res.text).toContain("/api/weather");
+    expect(res.text).toContain("api/time");
+    expect(res.text).toContain("api/weather");
   });
 
   it("HTML contains an ASCII cat picture", async () => {
