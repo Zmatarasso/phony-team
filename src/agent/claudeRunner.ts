@@ -258,13 +258,13 @@ export class AgentRunner {
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     this.options.logger.info("Anthropic API call", {
       issue_id: this.options.issue.id,
-      model: "claude-opus-4-6",
+      model: "claude-sonnet-4-6",
       turn: messages.length,
     });
     try {
       return await this.client.messages.create(
         {
-          model: "claude-opus-4-6",
+          model: "claude-sonnet-4-6",
           max_tokens: 8096,
           system,
           messages,

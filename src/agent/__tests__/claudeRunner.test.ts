@@ -79,7 +79,7 @@ function makeMessage(
     type: "message",
     role: "assistant",
     content,
-    model: "claude-opus-4-6",
+    model: "claude-sonnet-4-6",
     stop_reason: stopReason,
     stop_sequence: null,
     usage,

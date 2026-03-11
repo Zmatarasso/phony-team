@@ -16,7 +16,7 @@ tracker:
     - Waiting
 
 polling:
-  interval_ms: 1500000
+  interval_ms: 100000000
 
 workspace:
   root: ~/symphony_workspaces
