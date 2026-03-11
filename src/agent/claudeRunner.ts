@@ -134,7 +134,7 @@ export class AgentRunner {
 
       let response: Anthropic.Message;
       try {
-        response = await this.callApi(messages, systemPrompt, turnTimeoutMs);
+        response = await this.callApi(messages, systemPrompt, turnTimeoutMs, turnNumber);
       } catch (err) {
         if (this.options.signal?.aborted) {
           onEvent(issue.id, {
@@ -246,6 +246,7 @@ export class AgentRunner {
     messages: Anthropic.MessageParam[],
     system: string,
     timeoutMs: number,
+    turnNumber?: number,
   ): Promise<Anthropic.Message> {
     const controller = new AbortController();
     const outerSignal = this.options.signal;
@@ -259,7 +260,7 @@ export class AgentRunner {
     this.options.logger.info("Anthropic API call", {
       issue_id: this.options.issue.id,
       model: "claude-sonnet-4-6",
-      turn: messages.length,
+      turn: turnNumber ?? messages.length,
     });
     try {
       return await this.client.messages.create(
