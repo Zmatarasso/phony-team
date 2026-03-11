@@ -75,6 +75,13 @@ export interface MalformedEvent extends BaseEvent {
   readonly raw: string;
 }
 
+export interface AgentActivityEvent extends BaseEvent {
+  readonly event: "agent_activity";
+  readonly turn: number;
+  readonly kind: "text" | "tool_call" | "tool_result" | "thinking";
+  readonly summary: string;
+}
+
 export interface TokenUsageUpdatedEvent extends BaseEvent {
   readonly event: "token_usage_updated";
   readonly usage: TokenUsage;
@@ -94,7 +101,8 @@ export type AgentEvent =
   | NotificationEvent
   | OtherMessageEvent
   | MalformedEvent
-  | TokenUsageUpdatedEvent;
+  | TokenUsageUpdatedEvent
+  | AgentActivityEvent;
 
 export type AgentEventType = AgentEvent["event"];
 

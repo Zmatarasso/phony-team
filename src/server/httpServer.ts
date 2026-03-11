@@ -2,7 +2,7 @@ import express, { type Request, type Response, type NextFunction } from "express
 import type { Server } from "http";
 import type { AddressInfo } from "net";
 import type { Orchestrator } from "../orchestrator/orchestrator.js";
-import type { OrchestratorRuntimeState, RunningEntry, RetryEntry } from "../types/domain.js";
+import type { OrchestratorRuntimeState, RunningEntry, RetryEntry, ActivityFeedEntry } from "../types/domain.js";
 import type { TokenTracker, DayRecord } from "../logging/tokenTracker.js";
 import { createApp as createWebsiteApp } from "../website/websiteServer.js";
 
@@ -139,6 +139,11 @@ function renderDashboard(state: Readonly<OrchestratorRuntimeState>, dailyUsage: 
     .empty { color: #6e7681; font-style: italic; }
     .nav-link { color: #58a6ff; text-decoration: none; font-size: 1.1rem; }
     .nav-link:hover { text-decoration: underline; }
+    .feed-table { font-size: 0.85rem; }
+    .feed-table td { vertical-align: top; }
+    .feed-time { color: #6e7681; white-space: nowrap; }
+    .feed-kind { color: #8b949e; }
+    .feed-summary { max-width: 60ch; word-break: break-word; white-space: pre-wrap; }
   </style>
 </head>
 <body>
@@ -173,8 +178,38 @@ function renderDashboard(state: Readonly<OrchestratorRuntimeState>, dailyUsage: 
 
   <h2>Token Usage by Day</h2>
   ${renderDailyUsage(dailyUsage)}
+
+  <h2>Live Feed</h2>
+  ${renderActivityFeed(state.activity_feed)}
 </body>
 </html>`;
+}
+
+const KIND_LABELS: Record<string, string> = {
+  text: "💬",
+  tool_call: "🔧",
+  tool_result: "📋",
+  thinking: "🧠",
+};
+
+function renderActivityFeed(feed: readonly ActivityFeedEntry[]): string {
+  if (feed.length === 0) return '<p class="empty">No activity yet.</p>';
+  // Show newest first
+  const rows = [...feed].reverse().map((e) => {
+    const time = e.timestamp.toISOString().slice(11, 19);
+    const icon = KIND_LABELS[e.kind] ?? "•";
+    return `<tr>
+      <td class="feed-time">${time}</td>
+      <td>${esc(e.issue_identifier)}</td>
+      <td>${icon} <span class="feed-kind">${esc(e.kind)}</span></td>
+      <td>T${e.turn}</td>
+      <td class="feed-summary">${esc(e.summary)}</td>
+    </tr>`;
+  }).join("\n");
+  return `<table class="feed-table">
+  <thead><tr><th>Time</th><th>Issue</th><th>Kind</th><th>Turn</th><th>Summary</th></tr></thead>
+  <tbody>${rows}</tbody>
+</table>`;
 }
 
 function esc(s: string): string {

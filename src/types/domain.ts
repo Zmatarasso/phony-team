@@ -99,6 +99,14 @@ export interface RunningEntry {
   readonly abort_controller: AbortController;
 }
 
+export interface ActivityFeedEntry {
+  readonly timestamp: Date;
+  readonly issue_identifier: string;
+  readonly turn: number;
+  readonly kind: "text" | "tool_call" | "tool_result" | "thinking";
+  readonly summary: string;
+}
+
 export interface OrchestratorRuntimeState {
   poll_interval_ms: number;
   max_concurrent_agents: number;
@@ -109,4 +117,5 @@ export interface OrchestratorRuntimeState {
   codex_totals: CodexTotals;
   codex_rate_limits: unknown | null;
   jira_api_calls: number;
+  activity_feed: ActivityFeedEntry[];
 }

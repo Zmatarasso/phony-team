@@ -92,6 +92,7 @@ export class Orchestrator {
       codex_totals: { input_tokens: 0, output_tokens: 0, total_tokens: 0, seconds_running: 0 },
       codex_rate_limits: null,
       jira_api_calls: 0,
+      activity_feed: [],
     };
     const onJiraRequest = (method: string, path: string): void => {
       this.state.jira_api_calls++;
@@ -493,6 +494,20 @@ export class Orchestrator {
       last_codex_event: event.event,
       last_codex_timestamp: event.timestamp,
     };
+
+    if (event.event === "agent_activity") {
+      const MAX_FEED_ENTRIES = 50;
+      this.state.activity_feed.push({
+        timestamp: event.timestamp,
+        issue_identifier: entry.identifier,
+        turn: event.turn,
+        kind: event.kind,
+        summary: event.summary,
+      });
+      if (this.state.activity_feed.length > MAX_FEED_ENTRIES) {
+        this.state.activity_feed = this.state.activity_feed.slice(-MAX_FEED_ENTRIES);
+      }
+    }
 
     if (event.event === "token_usage_updated") {
       const prevInput = entry.session.codex_input_tokens ?? 0;

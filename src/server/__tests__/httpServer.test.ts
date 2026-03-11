@@ -24,6 +24,8 @@ function makeState(overrides: Partial<OrchestratorRuntimeState> = {}): Orchestra
     completed: new Set(),
     codex_totals: { input_tokens: 0, output_tokens: 0, total_tokens: 0, seconds_running: 0 },
     codex_rate_limits: null,
+    jira_api_calls: 0,
+    activity_feed: [],
     ...overrides,
   };
 }

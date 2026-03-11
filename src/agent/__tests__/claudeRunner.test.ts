@@ -149,7 +149,7 @@ describe("AgentRunner — single turn, end_turn", () => {
     await new AgentRunner(opts, client).run();
 
     const eventTypes = opts.events.map((e) => e.event);
-    expect(eventTypes).toEqual(["session_started", "token_usage_updated", "turn_completed"]);
+    expect(eventTypes).toEqual(["session_started", "token_usage_updated", "agent_activity", "turn_completed"]);
   });
 
   it("turn_completed carries per-turn token usage", async () => {

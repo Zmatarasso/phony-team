@@ -10,6 +10,26 @@ import { executeBash } from "./tools/bashExecute.js";
 import { readWorkspaceFile, writeWorkspaceFile, listWorkspaceDir } from "./tools/fileOps.js";
 import { JIRA_TOOL_DEFINITION, executeJiraTool } from "./tools/jiraTool.js";
 
+function summarizeToolInput(toolName: string, input: Record<string, unknown>): string {
+  switch (toolName) {
+    case "bash":
+      return String(input["command"] ?? "").slice(0, 200);
+    case "read_file":
+      return String(input["path"] ?? "");
+    case "write_file":
+      return `${input["path"] ?? ""} (${String(input["content"] ?? "").length} bytes)`;
+    case "list_directory":
+      return String(input["path"] ?? ".");
+    case "jira_api": {
+      const method = String(input["method"] ?? "GET");
+      const path = String(input["path"] ?? "");
+      return `${method} ${path}`;
+    }
+    default:
+      return JSON.stringify(input).slice(0, 150);
+  }
+}
+
 const BASE_TOOL_DEFINITIONS: Anthropic.Tool[] = [
   {
     name: "bash",
@@ -174,6 +194,51 @@ export class AgentRunner {
         },
       });
 
+      // Log and emit activity events for text, thinking, and tool_use blocks
+      for (const block of response.content) {
+        if (block.type === "text" && block.text.trim()) {
+          logger.info("Agent text response", {
+            issue_id: issue.id,
+            turn: turnNumber,
+            text: block.text,
+          });
+          onEvent(issue.id, {
+            event: "agent_activity",
+            timestamp: new Date(),
+            codex_app_server_pid: null,
+            turn: turnNumber,
+            kind: "text",
+            summary: block.text.length > 300 ? block.text.slice(0, 300) + "…" : block.text,
+          });
+        } else if ((block as unknown as { type: string }).type === "thinking" && "thinking" in block) {
+          const thinking = (block as unknown as { thinking: string }).thinking;
+          logger.debug("Agent thinking", {
+            issue_id: issue.id,
+            turn: turnNumber,
+            thinking,
+          });
+          onEvent(issue.id, {
+            event: "agent_activity",
+            timestamp: new Date(),
+            codex_app_server_pid: null,
+            turn: turnNumber,
+            kind: "thinking",
+            summary: thinking.length > 300 ? thinking.slice(0, 300) + "…" : thinking,
+          });
+        } else if (block.type === "tool_use") {
+          const input = block.input as Record<string, unknown>;
+          const snippet = summarizeToolInput(block.name, input);
+          onEvent(issue.id, {
+            event: "agent_activity",
+            timestamp: new Date(),
+            codex_app_server_pid: null,
+            turn: turnNumber,
+            kind: "tool_call",
+            summary: `${block.name}: ${snippet}`,
+          });
+        }
+      }
+
       messages.push({ role: "assistant", content: response.content });
 
       if (response.stop_reason === "max_tokens") {
@@ -227,6 +292,19 @@ export class AgentRunner {
           tool_use_id: block.id,
           content: resultContent,
         });
+        const resultSnippet = resultContent.length > 200
+          ? resultContent.slice(0, 200) + "…"
+          : resultContent;
+        if (resultSnippet.trim()) {
+          onEvent(issue.id, {
+            event: "agent_activity",
+            timestamp: new Date(),
+            codex_app_server_pid: null,
+            turn: turnNumber,
+            kind: "tool_result",
+            summary: `${block.name} → ${resultSnippet}`,
+          });
+        }
       }
       messages.push({ role: "user", content: toolResults });
     }
