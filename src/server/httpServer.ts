@@ -4,6 +4,7 @@ import type { AddressInfo } from "net";
 import type { Orchestrator } from "../orchestrator/orchestrator.js";
 import type { OrchestratorRuntimeState, RunningEntry, RetryEntry } from "../types/domain.js";
 import type { TokenTracker, DayRecord } from "../logging/tokenTracker.js";
+import { createApp as createWebsiteApp } from "../website/websiteServer.js";
 
 // --- Response shape helpers ---
 
@@ -136,11 +137,14 @@ function renderDashboard(state: Readonly<OrchestratorRuntimeState>, dailyUsage: 
     .stat { display: inline-block; margin-right: 2rem; }
     .stat-value { font-size: 1.4rem; color: #58a6ff; }
     .empty { color: #6e7681; font-style: italic; }
+    .nav-link { color: #58a6ff; text-decoration: none; font-size: 1.1rem; }
+    .nav-link:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
   <h1>Symphony Dashboard</h1>
   <p>Last refresh: ${new Date().toISOString()}</p>
+  <p><a class="nav-link" href="/website">&#127760; View Website</a></p>
 
   <h2>Totals</h2>
   <div>
@@ -229,6 +233,9 @@ export async function startServer(orchestrator: Orchestrator, port: number, toke
       operations: ["poll", "reconcile"],
     });
   });
+
+  // Mount the website app at /website
+  app.use("/website", createWebsiteApp());
 
   // GET / — dashboard
   app.get("/", (_req: Request, res: Response) => {

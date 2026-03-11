@@ -107,7 +107,7 @@ function renderApp(): string {
 
       React.useEffect(function () {
         function fetchTime() {
-          fetch('/api/time')
+          fetch('api/time')
             .then(function (r) { return r.json(); })
             .then(function (d) { setData(d); setError(null); })
             .catch(function (err) { setError(err.message); });
@@ -152,7 +152,7 @@ function renderApp(): string {
 
       React.useEffect(function () {
         function fetchWeather() {
-          fetch('/api/weather')
+          fetch('api/weather')
             .then(function (r) { return r.json(); })
             .then(function (d) { setData(d); setError(null); })
             .catch(function (err) { setError(err.message); });
