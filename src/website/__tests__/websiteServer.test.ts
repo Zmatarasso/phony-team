@@ -76,6 +76,18 @@ describe("Website - GET / (frontend)", () => {
     expect(res.text).toContain("CatAscii");
     expect(res.text).toContain("( o.o )");
   });
+
+  it("HTML has a blue background", async () => {
+    const res = await request(app).get("/");
+    expect(res.text).toContain("background: #0a1628");
+  });
+
+  it("HTML contains a blinking ASCII sun", async () => {
+    const res = await request(app).get("/");
+    expect(res.text).toContain("ascii-sun");
+    expect(res.text).toContain("SunAscii");
+    expect(res.text).toContain("blinker");
+  });
 });
 
 describe("Website - 404 handling", () => {
