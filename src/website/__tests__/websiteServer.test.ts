@@ -64,10 +64,10 @@ describe("Website - GET / (frontend)", () => {
     expect(res.text).toContain("Time &amp; Weather");
   });
 
-  it("HTML contains fetch calls to /api/time and /api/weather", async () => {
+  it("HTML contains fetch calls to api/time and api/weather", async () => {
     const res = await request(app).get("/");
-    expect(res.text).toContain("/api/time");
-    expect(res.text).toContain("/api/weather");
+    expect(res.text).toContain("api/time");
+    expect(res.text).toContain("api/weather");
   });
 
   it("HTML contains an ASCII cat picture", async () => {
@@ -75,6 +75,18 @@ describe("Website - GET / (frontend)", () => {
     expect(res.text).toContain("ascii-cat");
     expect(res.text).toContain("CatAscii");
     expect(res.text).toContain("( o.o )");
+  });
+
+  it("HTML has a blue background", async () => {
+    const res = await request(app).get("/");
+    expect(res.text).toContain("background: #0a1628");
+  });
+
+  it("HTML contains a blinking ASCII sun", async () => {
+    const res = await request(app).get("/");
+    expect(res.text).toContain("ascii-sun");
+    expect(res.text).toContain("SunAscii");
+    expect(res.text).toContain("blinker");
   });
 });
 

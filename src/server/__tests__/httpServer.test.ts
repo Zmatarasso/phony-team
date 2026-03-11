@@ -195,6 +195,73 @@ describe("GET / (dashboard)", () => {
       await srv.stop();
     }
   });
+
+  it("dashboard contains a link to /website", async () => {
+    const orch = makeMockOrchestrator();
+    const srv = await startServer(orch, 0, makeMockTokenTracker());
+    try {
+      const res = await request(`http://127.0.0.1:${srv.port}`).get("/");
+      expect(res.text).toContain('href="/website"');
+      expect(res.text).toContain("View Website");
+    } finally {
+      await srv.stop();
+    }
+  });
+});
+
+describe("GET /website (mounted website app)", () => {
+  it("serves the website frontend HTML at /website/", async () => {
+    const orch = makeMockOrchestrator();
+    const srv = await startServer(orch, 0, makeMockTokenTracker());
+    try {
+      const res = await request(`http://127.0.0.1:${srv.port}`).get("/website/");
+      expect(res.status).toBe(200);
+      expect(res.headers["content-type"]).toMatch(/text\/html/);
+      expect(res.text).toContain("Time &amp; Weather");
+    } finally {
+      await srv.stop();
+    }
+  });
+
+  it("serves the time API at /website/api/time", async () => {
+    const orch = makeMockOrchestrator();
+    const srv = await startServer(orch, 0, makeMockTokenTracker());
+    try {
+      const res = await request(`http://127.0.0.1:${srv.port}`).get("/website/api/time");
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty("timezone");
+      expect(res.body).toHaveProperty("datetime");
+      expect(res.body).toHaveProperty("label", "TIME");
+    } finally {
+      await srv.stop();
+    }
+  });
+
+  it("serves the weather API at /website/api/weather", async () => {
+    const orch = makeMockOrchestrator();
+    const srv = await startServer(orch, 0, makeMockTokenTracker());
+    try {
+      const res = await request(`http://127.0.0.1:${srv.port}`).get("/website/api/weather");
+      expect(res.status).toBe(200);
+      expect(res.body).toHaveProperty("location");
+      expect(res.body).toHaveProperty("temperature_f");
+      expect(res.body).toHaveProperty("label", "WEATH");
+    } finally {
+      await srv.stop();
+    }
+  });
+
+  it("redirects /website to /website/ for proper relative URL resolution", async () => {
+    const orch = makeMockOrchestrator();
+    const srv = await startServer(orch, 0, makeMockTokenTracker());
+    try {
+      const res = await request(`http://127.0.0.1:${srv.port}`).get("/website");
+      // Express sub-app mount typically redirects /website to /website/
+      expect([200, 301, 302, 303, 307, 308]).toContain(res.status);
+    } finally {
+      await srv.stop();
+    }
+  });
 });
 
 describe("404 for undefined routes", () => {

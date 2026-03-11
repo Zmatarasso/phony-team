@@ -17,7 +17,7 @@ function renderApp(): string {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #000000;
+      background: #0a1628;
       color: #e0e0e0;
       min-height: 100vh;
       display: flex;
@@ -76,6 +76,21 @@ function renderApp(): string {
       color: #a0a0a0;
       white-space: pre;
     }
+    @keyframes blinker {
+      0% { opacity: 1; }
+      50% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+    .ascii-sun {
+      text-align: center;
+      margin-top: 2rem;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.85rem;
+      line-height: 1.2;
+      color: #ffd700;
+      white-space: pre;
+      animation: blinker 1.5s linear infinite;
+    }
   </style>
 </head>
 <body>
@@ -92,7 +107,7 @@ function renderApp(): string {
 
       React.useEffect(function () {
         function fetchTime() {
-          fetch('/api/time')
+          fetch('api/time')
             .then(function (r) { return r.json(); })
             .then(function (d) { setData(d); setError(null); })
             .catch(function (err) { setError(err.message); });
@@ -137,7 +152,7 @@ function renderApp(): string {
 
       React.useEffect(function () {
         function fetchWeather() {
-          fetch('/api/weather')
+          fetch('api/weather')
             .then(function (r) { return r.json(); })
             .then(function (d) { setData(d); setError(null); })
             .catch(function (err) { setError(err.message); });
@@ -190,6 +205,22 @@ function renderApp(): string {
       );
     }
 
+    function SunAscii() {
+      var sun = [
+        '       \\\\    |    /    ',
+        '        \\\\   |   /     ',
+        '         .---.         ',
+        '    --- |     | ---    ',
+        '         \\x27---\\x27         ',
+        '        /   |   \\\\     ',
+        '       /    |    \\\\    '
+      ].join('\\n');
+
+      return e('div', { className: 'ascii-sun' },
+        e('pre', null, sun)
+      );
+    }
+
     function App() {
       return e('div', null,
         e('h1', null, '\\u23F0 Time & Weather'),
@@ -197,6 +228,7 @@ function renderApp(): string {
           e(TimeWidget),
           e(WeatherWidget)
         ),
+        e(SunAscii),
         e(CatAscii)
       );
     }
